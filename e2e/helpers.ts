@@ -10,7 +10,14 @@ export async function clickCell(page: Page, x: number, y: number): Promise<void>
   const box = (await canvas.boundingBox())!;
   // Das Spielfeld hat einen dekorativen Rand; Weltpixel → Bildschirmpixel über die Skalierung
   const scale = box.width / (cols * tile + margin * 2);
-  await canvas.click({ position: { x: (margin + (x + 0.5) * tile) * scale, y: (margin + (y + 0.5) * tile) * scale } });
+  const px = box.x + (margin + (x + 0.5) * tile) * scale;
+  const py = box.y + (margin + (y + 0.5) * tile) * scale;
+  const viewport = page.viewportSize();
+  // Direkt mit der Maus klicken: `canvas.click` wartet vor jedem Klick auf ein stabiles Element über mehrere
+  // Animationsframes, was im Headless-Browser ohne GPU sekundenlang dauert. Außerhalb des Sichtbereichs
+  // übernimmt `canvas.click` das Scrollen.
+  if (viewport && py >= 0 && py < viewport.height && px >= 0 && px < viewport.width) await page.mouse.click(px, py);
+  else await canvas.click({ position: { x: px - box.x, y: py - box.y } });
 }
 
 export async function planRoute(page: Page, route: string): Promise<void> {

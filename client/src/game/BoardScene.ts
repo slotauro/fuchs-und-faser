@@ -5,13 +5,24 @@ import { ANIMAL_POSES, ANIMAL_VIEWS, animalDataUrl } from '../ui/animalArt';
 import { AbilityLayer } from './layers/AbilityLayer';
 import { MARGIN, TILE } from './layers/constants';
 import { textureKey } from './layers/facing';
-import { FiberLayer, buildDuration } from './layers/FiberLayer';
+import { FINALE_FLASH, FiberLayer, buildDuration } from './layers/FiberLayer';
 import { FigureLayer } from './layers/FigureLayer';
 import { PlanLayer } from './layers/PlanLayer';
 import { TerrainLayer } from './layers/TerrainLayer';
 import type { Planner } from './planner';
 
 export { MARGIN, TILE };
+
+/** Pause nach der Bauanimation, bevor am Rundenende die Ergebniskarte erscheint. */
+const FINALE_HOLD = 600;
+
+/**
+ * Wartezeit bis zur Ergebniskarte, wenn eine Route die Runde beendet: Die Verlegung soll erst
+ * vollständig zu sehen sein (Bauanimation, Aufleuchten des Netzes, kurze Pause).
+ */
+export function finaleDelay(routeLength: number, reduceMotion: boolean): number {
+  return reduceMotion ? 1200 : buildDuration(routeLength) + FINALE_FLASH + FINALE_HOLD;
+}
 
 export interface BoardOptions {
   onHint(message: string): void;
@@ -156,7 +167,15 @@ export class BoardScene extends Phaser.Scene {
         }
         animating = true;
         // Anschluss erst zeigen, wenn die Leitung am Haus angekommen ist
-        this.fibers.animate(state, event.cells, () => this.terrain.setConnected(state.connected), onCell ?? undefined);
+        this.fibers.animate(
+          state,
+          event.cells,
+          () => {
+            this.terrain.setConnected(state.connected);
+            if (state.status === 'won') this.fibers.finale();
+          },
+          onCell ?? undefined,
+        );
       }
       if (event.type === 'buildingConnected') {
         const pos = this.terrain.socketPosition(event.buildingId);

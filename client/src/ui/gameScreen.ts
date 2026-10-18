@@ -8,7 +8,7 @@ import {
 } from '@fuf/shared';
 import type Phaser from 'phaser';
 import type { GameController } from '../controller/GameController';
-import { createBoard } from '../game/BoardScene';
+import { createBoard, finaleDelay } from '../game/BoardScene';
 import { Planner } from '../game/planner';
 import { renderTileSwatch } from '../game/art/terrain';
 import { distributorSvg, socketSvg, svgDataUrl } from '../game/art/svgAssets';
@@ -70,6 +70,8 @@ export function mountGameScreen(controller: GameController, options: GameScreenO
   const animal = ANIMALS[me().animal];
   let building = false;
   let resultShown = false;
+  /** Ergebniskarte wartet, bis die letzte Verlegung zu sehen war */
+  let resultTimer: number | null = null;
 
   resetScroll();
   const stat = (id: string, icon: string, label: string, testid: string, extra = '') =>
@@ -88,6 +90,7 @@ export function mountGameScreen(controller: GameController, options: GameScreenO
         <div class="board-wrap"><div id="board" data-testid="board" data-cols="${map.width}" data-rows="${map.height}"></div></div>
         <div class="dock">
           <div class="plan-info" id="plan-info" role="status" aria-live="polite"><span class="plan-dot" aria-hidden="true"></span><span class="msg" data-testid="plan-msg"></span>
+            <button class="btn primary" id="btn-result" data-testid="result-show" hidden>${ICONS.trophy}<span>Ergebnis anzeigen</span></button>
             <button class="btn ghost" id="btn-pause">${controller.canPause ? ICONS.pause : ICONS.exit}<span>${controller.canPause ? 'Pause' : 'Verlassen'}</span></button></div>
           <div class="actions">
             <button class="btn primary" id="btn-build" data-testid="build" title="Taste B oder Enter">${ICONS.build}<span>Route bauen</span><kbd>B</kbd></button>
@@ -201,7 +204,10 @@ export function mountGameScreen(controller: GameController, options: GameScreenO
     const error = planner.rejected ?? analysis.error;
     info.classList.toggle('error', !!error && planner.cells.length > 0);
     info.classList.toggle('ready', !error && analysis.complete);
-    if (!playing) msg.textContent = 'Runde beendet.';
+    // Ergebniskarte ausgeblendet: Spielfeld betrachten, Karte jederzeit wieder einblenden
+    const resultHidden = !playing && resultShown && document.getElementById('overlay')!.hidden;
+    $('#btn-result').hidden = !resultHidden;
+    if (!playing) msg.textContent = resultHidden ? 'Runde beendet – das Ergebnis kannst du jederzeit wieder einblenden (Esc).' : 'Runde beendet.';
     else if (state.pausedAt !== null) msg.textContent = 'Pausiert.';
     else if (planner.cells.length === 0) {
       msg.textContent = state.routes.length
@@ -228,7 +234,7 @@ export function mountGameScreen(controller: GameController, options: GameScreenO
         .join('');
     }
     renderTime(state);
-    if (state.status !== 'playing' && !resultShown) showResult(state);
+    if (state.status !== 'playing' && !resultShown && resultTimer === null) showResult(state);
   }
 
   function renderTime(state: GameState): void {
@@ -257,6 +263,11 @@ export function mountGameScreen(controller: GameController, options: GameScreenO
         <div class="row" id="result-actions"></div>
       </div>`);
     const actions = $('#result-actions', el);
+    const view = document.createElement('button');
+    view.className = 'btn ghost';
+    view.dataset.testid = 'result-hide';
+    view.innerHTML = `${ICONS.eye}<span>Spielfeld ansehen</span>`;
+    view.onclick = hideResult;
     for (const action of options.resultActions) {
       const btn = document.createElement('button');
       btn.className = `btn${action.primary ? ' primary' : ''}`;
@@ -267,7 +278,15 @@ export function mountGameScreen(controller: GameController, options: GameScreenO
       };
       actions.appendChild(btn);
     }
+    actions.appendChild(view);
     (actions.querySelector('button') as HTMLButtonElement | null)?.focus();
+    renderHud(state);
+  }
+
+  function hideResult(): void {
+    hideOverlay();
+    renderHud(controller.getState());
+    $('#btn-result').focus();
   }
 
   async function build(): Promise<void> {
@@ -332,6 +351,7 @@ export function mountGameScreen(controller: GameController, options: GameScreenO
   $('#btn-undo').onclick = () => planner.undo();
   $('#btn-clear').onclick = () => planner.clear();
   $('#btn-pause').onclick = pauseOrLeave;
+  $('#btn-result').onclick = () => showResult(controller.getState());
 
   const ARROWS: Record<string, [number, number]> = {
     ArrowUp: [0, -1],
@@ -343,12 +363,14 @@ export function mountGameScreen(controller: GameController, options: GameScreenO
     if (e.target instanceof HTMLInputElement) return;
     const overlayOpen = !document.getElementById('overlay')!.hidden;
     if (e.key === 'Escape') {
+      const finished = controller.getState().status !== 'playing';
       if (overlayOpen) {
-        if (controller.getState().status === 'playing') {
+        if (!finished) {
           hideOverlay();
           controller.resume();
-        }
-      } else if (planner.cells.length) planner.clear();
+        } else if (resultShown) hideResult();
+      } else if (finished && resultShown) showResult(controller.getState());
+      else if (planner.cells.length) planner.clear();
       else pauseOrLeave();
       return;
     }
@@ -374,6 +396,13 @@ export function mountGameScreen(controller: GameController, options: GameScreenO
   window.addEventListener('keydown', onKey);
 
   const unsubState = controller.subscribe((state, events) => {
+    const finalRoute = state.status !== 'playing' ? events.find((e) => e.type === 'routeBuilt') : undefined;
+    if (finalRoute?.type === 'routeBuilt' && !resultShown && resultTimer === null) {
+      resultTimer = window.setTimeout(() => {
+        resultTimer = null;
+        renderHud(controller.getState());
+      }, finaleDelay(finalRoute.cells.length, options.settings.reduceMotion));
+    }
     for (const event of events) {
       if (event.type === 'buildingConnected') {
         const b = map.buildings.find((x) => x.id === event.buildingId);
@@ -392,6 +421,7 @@ export function mountGameScreen(controller: GameController, options: GameScreenO
     destroy() {
       window.removeEventListener('keydown', onKey);
       window.clearInterval(clock);
+      if (resultTimer !== null) window.clearTimeout(resultTimer);
       unsubState();
       unsubPlan();
       game.destroy(true);

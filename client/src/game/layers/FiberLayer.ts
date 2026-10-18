@@ -10,6 +10,8 @@ const FIBER_SHINE = 0xffe2bf;
 
 /** Dauer der Bauanimation für eine Route mit `n` Kacheln. */
 export const buildDuration = (n: number) => Math.min(1400, 110 * n);
+/** So lange leuchtet das fertige Netz am Rundenende auf. */
+export const FINALE_FLASH = 1000;
 
 interface DrawnRoute {
   cells: Cell[];
@@ -151,6 +153,23 @@ export class FiberLayer {
         reach(1);
         onDone();
       },
+    });
+  }
+
+  /** Rundenende: das ganze Netz leuchtet zweimal hell auf. */
+  finale(): void {
+    if (this.reduceMotion || this.routes.length === 0) return;
+    const g = this.scene.add.graphics().setDepth(DEPTH.fiber + 0.3).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0);
+    for (const r of this.routes) strokePath(g, r.pts, TILE * 0.6, FIBER_GLOW, 0.5);
+    for (const r of this.routes) strokePath(g, r.pts, TILE * 0.12, 0xffffff, 0.9);
+    this.scene.tweens.add({
+      targets: g,
+      alpha: 1,
+      duration: FINALE_FLASH / 4,
+      yoyo: true,
+      repeat: 1,
+      ease: 'Sine.easeInOut',
+      onComplete: () => g.destroy(),
     });
   }
 

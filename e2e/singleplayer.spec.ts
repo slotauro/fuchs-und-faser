@@ -74,6 +74,17 @@ test('Pfeiltasten: das Tier läuft los und legt dabei die Leitung', async ({ pag
   await page.keyboard.press('ArrowUp');
   await expect(page.getByTestId('plan-msg')).toContainText('Jetzt bauen');
   await page.keyboard.press('Enter');
-  await expect(page.getByTestId('result')).toContainText('Alle Gebäude sind am Netz');
+  const result = page.getByTestId('result');
+  await expect(result).toContainText('Alle Gebäude sind am Netz');
   await expect(page.getByTestId('budget')).toHaveText('7 / 22');
+
+  // Ergebniskarte ausblenden, Spielfeld ansehen, wieder einblenden (Knopf und Esc)
+  await page.getByTestId('result-hide').click();
+  await expect(result).toBeHidden();
+  await page.getByTestId('result-show').click();
+  await expect(result).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(result).toBeHidden();
+  await page.keyboard.press('Escape');
+  await expect(result).toContainText('Alle Gebäude sind am Netz');
 });
