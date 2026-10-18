@@ -56,5 +56,5 @@ Bau-Fähigkeiten werden „scharf geschaltet“ und **nur verbraucht, wenn sie i
   - Die geplante Route ist eine transparente, gestrichelte Vorschau.
   - Ungültige Abschnitte erscheinen rot gestrichelt mit einem ✕-Symbol, das über der Figur liegt.
   - Angeschlossene Gebäude bekommen einen grünen Anschlusskasten mit Häkchen.
-- **Figuren:** Die eigene Figur hat einen cremefarbenen Ring mit oranger Kontur, Mitspieler einen Ring in Tierfarbe und ein Namensschild. Eine scharf geschaltete Fähigkeit zeigt eine pulsierende Aura und ein Abzeichen.
+- **Figuren:** Die eigene Figur hat einen cremefarbenen Ring mit oranger Kontur, Mitspieler einen Ring in Tierfarbe und ein Namensschild. Eine scharf geschaltete Fähigkeit zeigt eine pulsierende Aura und ein Abzeichen. Die Figur schaut in Laufrichtung: nach unten von vorne, nach oben von hinten, nach links und rechts im Profil (links ist die gespiegelte Seitenansicht). Im Stand behält sie die letzte Laufrichtung. Beim Laufen wechseln sich zwei Schritt-Posen ab; mit „Animationen reduzieren“ dreht sich die Figur nur, ohne Schrittwechsel.
 - Die Option „Animationen reduzieren“ schaltet Bau-, Lauf-, Idle- und Anschlussanimationen sowie den Lichtimpuls ab.

@@ -1,10 +1,12 @@
 import Phaser from 'phaser';
 import { ANIMALS, type AnimalId, type Cell, type GameState, type MapDef } from '@fuf/shared';
-import { ANIMAL_COLORS } from '../../ui/animalArt';
+import { ANIMAL_COLORS, type AnimalPose } from '../../ui/animalArt';
 import type { Planner } from '../planner';
 import { DEPTH, TILE, center } from './constants';
+import { facingFor, textureKey, viewFor, type Facing } from './facing';
 
 interface Figure {
+  animal: AnimalId;
   root: Phaser.GameObjects.Container;
   body: Phaser.GameObjects.Container;
   sprite: Phaser.GameObjects.Image;
@@ -13,6 +15,9 @@ interface Figure {
   cell: Cell;
   offset: number;
   baseScale: number;
+  facing: Facing;
+  /** wechselt bei jedem Schritt zwischen den beiden Schritt-Posen */
+  stepToggle: boolean;
 }
 
 const SPRITE = TILE * 1.0;
@@ -21,7 +26,8 @@ const FEET = TILE * 0.3;
 
 /**
  * Tierfiguren auf dem Spielfeld. Eigene Figur am Ende der Planung, Mitspieler am Ende ihrer Vorschau
- * bzw. am Verteiler. Animationen: Idle-Atmen, Hüpfen beim Laufen, Graben beim Bauen, Jubeln beim Anschluss.
+ * bzw. am Verteiler. Die Figur schaut in Laufrichtung (Front-, Seiten- oder Rückansicht) und behält sie im Stand.
+ * Animationen: Idle-Atmen, Schritt-Posen und Hüpfen beim Laufen, Graben beim Bauen, Jubeln beim Anschluss.
  */
 export class FigureLayer {
   private figures = new Map<string, Figure>();
@@ -114,7 +120,7 @@ export class FigureLayer {
     aura.lineStyle(4, color, 0.85).strokeEllipse(0, FEET - TILE * 0.32, TILE * 1.05, TILE * 1.05);
     aura.setVisible(false);
 
-    const sprite = scene.add.image(0, FEET + TILE * 0.06, `animal-${animal}`).setOrigin(0.5, 1).setDisplaySize(SPRITE, SPRITE);
+    const sprite = scene.add.image(0, FEET + TILE * 0.06, textureKey(animal, 'front', 'stand')).setOrigin(0.5, 1).setDisplaySize(SPRITE, SPRITE);
     if (!isMe) sprite.setAlpha(0.92);
     const badge = scene.add.image(TILE * 0.3, FEET - SPRITE * 0.95, `badge-${animal}`).setDisplaySize(TILE * 0.36, TILE * 0.36).setVisible(false);
 
@@ -135,7 +141,19 @@ export class FigureLayer {
     const body = scene.add.container(0, 0, parts);
     const p = this.spot(cell, offset);
     const root = scene.add.container(p.x, p.y, [ground, body]).setDepth(DEPTH.figures + (isMe ? 0.5 : 0));
-    const figure: Figure = { root, body, sprite, aura, badge, cell, offset, baseScale: sprite.scaleY };
+    const figure: Figure = {
+      animal,
+      root,
+      body,
+      sprite,
+      aura,
+      badge,
+      cell,
+      offset,
+      baseScale: sprite.scaleY,
+      facing: 'down',
+      stepToggle: false,
+    };
 
     if (!this.reduceMotion) {
       scene.tweens.add({
@@ -154,20 +172,38 @@ export class FigureLayer {
 
   private move(figure: Figure, cell: Cell, offset: number): void {
     const target = this.spot(cell, offset);
-    if (target.x < figure.root.x - 1) figure.sprite.setFlipX(true);
-    else if (target.x > figure.root.x + 1) figure.sprite.setFlipX(false);
+    // Nur ein Zellwechsel dreht die Figur, nicht das Ausweichen auf einem geteilten Feld
+    if (cell.x !== figure.cell.x || cell.y !== figure.cell.y) {
+      figure.facing = facingFor(cell.x - figure.cell.x, cell.y - figure.cell.y, figure.facing);
+    }
     figure.cell = cell;
     figure.offset = offset;
     this.scene.tweens.killTweensOf(figure.root);
     if (this.reduceMotion) {
+      this.pose(figure, 'stand');
       figure.root.setPosition(target.x, target.y);
       return;
     }
-    this.scene.tweens.add({ targets: figure.root, x: target.x, y: target.y, duration: 150, ease: 'Sine.easeOut' });
+    figure.stepToggle = !figure.stepToggle;
+    this.pose(figure, figure.stepToggle ? 'stepA' : 'stepB');
+    this.scene.tweens.add({
+      targets: figure.root,
+      x: target.x,
+      y: target.y,
+      duration: 150,
+      ease: 'Sine.easeOut',
+      onComplete: () => this.pose(figure, 'stand'),
+    });
     // kleiner Hüpfer mit Stauchen beim Landen
     this.scene.tweens.killTweensOf(figure.body);
     figure.body.y = 0;
     this.scene.tweens.add({ targets: figure.body, y: -TILE * 0.13, duration: 75, yoyo: true, ease: 'Quad.easeOut' });
+  }
+
+  /** Zeigt die Ansicht zur aktuellen Blickrichtung in der gewünschten Pose. */
+  private pose(figure: Figure, pose: AnimalPose): void {
+    const { view, flipX } = viewFor(figure.facing);
+    figure.sprite.setTexture(textureKey(figure.animal, view, pose)).setFlipX(flipX);
   }
 
   /** Graben: Figur wackelt, Erdkrümel fliegen. */

@@ -1,8 +1,9 @@
 import Phaser from 'phaser';
 import { ANIMAL_IDS, isAdjacent, type Cell, type GameEvent, type GameState } from '@fuf/shared';
 import type { GameController } from '../controller/GameController';
-import { animalDataUrl } from '../ui/animalArt';
+import { ANIMAL_POSES, ANIMAL_VIEWS, animalDataUrl } from '../ui/animalArt';
 import { MARGIN, TILE } from './layers/constants';
+import { textureKey } from './layers/facing';
 import { FiberLayer } from './layers/FiberLayer';
 import { FigureLayer } from './layers/FigureLayer';
 import { PlanLayer } from './layers/PlanLayer';
@@ -38,7 +39,10 @@ export class BoardScene extends Phaser.Scene {
   }
 
   preload(): void {
-    for (const id of ANIMAL_IDS) this.load.svg(`animal-${id}`, animalDataUrl(id), { width: 256, height: 256 });
+    for (const id of ANIMAL_IDS)
+      for (const view of ANIMAL_VIEWS)
+        for (const pose of ANIMAL_POSES)
+          this.load.svg(textureKey(id, view, pose), animalDataUrl(id, view, pose), { width: 256, height: 256 });
     TerrainLayer.preload(this, this.controller.map);
   }
 
