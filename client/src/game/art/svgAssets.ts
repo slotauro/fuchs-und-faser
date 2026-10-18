@@ -240,6 +240,38 @@ export function abilityBadgeSvg(animal: 'fox' | 'mole' | 'beaver' | 'badger'): s
     ${icons[animal]}`);
 }
 
+/**
+ * Ein Kachelstück der Biberbrücke für eine waagerechte Route (senkrecht wird es gedreht).
+ * Links und rechts offen, damit benachbarte Stücke zu einer durchgehenden Brücke werden.
+ */
+export function bridgeSvg(): string {
+  const planks = Array.from({ length: 8 }, (_, i) => {
+    const x = 6.25 + i * 12.5;
+    return `<path d="M${x} 24 V76" stroke="${P.plankDark}" stroke-width="2"/><path d="M${x - 9} 28 V40" stroke="#fff" stroke-width="2" opacity="0.25" stroke-linecap="round"/>`;
+  }).join('');
+  const posts = [12, 88]
+    .flatMap((x) => [18, 82].map((y) => `<circle cx="${x}" cy="${y}" r="6.5" fill="${P.plankDark}" stroke="${O}" stroke-width="2.5"/><circle cx="${x - 1.5}" cy="${y - 1.5}" r="2.5" fill="${P.plank}"/>`))
+    .join('');
+  return svgDoc(100, 100, `
+    <rect x="0" y="28" width="100" height="58" fill="${O}" opacity="0.28"/>
+    <rect x="0" y="22" width="100" height="56" fill="${P.plank}"/>
+    ${planks}
+    <rect x="0" y="14" width="100" height="8" fill="${P.plankDark}" stroke="${O}" stroke-width="2.5"/>
+    <rect x="0" y="78" width="100" height="8" fill="${P.plankDark}" stroke="${O}" stroke-width="2.5"/>
+    ${posts}`);
+}
+
+/** Maulwurfshügel an Tunnel-Ein- und -Ausgang. */
+export function molehillSvg(): string {
+  return svgDoc(60, 44, `
+    <defs><radialGradient id="hill" cx="0.4" cy="0.3" r="0.8"><stop offset="0" stop-color="${P.rootLight}"/><stop offset="1" stop-color="${P.soilDark}"/></radialGradient></defs>
+    <ellipse cx="32" cy="38" rx="27" ry="5.5" fill="${O}" opacity="0.22"/>
+    <path d="M5 37 Q10 13 30 10 Q50 13 55 37 Z" fill="url(#hill)" stroke="${O}" stroke-width="2.5" stroke-linejoin="round"/>
+    <ellipse cx="30" cy="16" rx="8" ry="4" fill="${P.soilDark}" stroke="${O}" stroke-width="2"/>
+    <circle cx="16" cy="30" r="2.6" fill="${P.soilDark}"/><circle cx="40" cy="26" r="2.2" fill="${P.soilDark}"/><circle cx="46" cy="33" r="2.8" fill="${P.soilDark}"/>
+    <path d="M14 24 Q18 16 26 14" stroke="#fff" stroke-width="2.5" fill="none" opacity="0.3" stroke-linecap="round"/>`);
+}
+
 /** Alle SVG-Texturen, die das Spielfeld vorlädt (Schlüssel → SVG, Pixelgröße). */
 export function worldAssets(): { key: string; svg: string }[] {
   return [
@@ -253,6 +285,8 @@ export function worldAssets(): { key: string; svg: string }[] {
     { key: 'shaft', svg: shaftSvg() },
     { key: 'socket', svg: socketSvg(false) },
     { key: 'socket-on', svg: socketSvg(true) },
+    { key: 'bridge', svg: bridgeSvg() },
+    { key: 'molehill', svg: molehillSvg() },
     ...(['fox', 'mole', 'beaver', 'badger'] as const).map((id) => ({ key: `badge-${id}`, svg: abilityBadgeSvg(id) })),
   ];
 }

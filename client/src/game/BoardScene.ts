@@ -1,10 +1,11 @@
 import Phaser from 'phaser';
-import { ANIMAL_IDS, isAdjacent, type Cell, type GameEvent, type GameState } from '@fuf/shared';
+import { ANIMAL_IDS, findPlayer, isAdjacent, type Cell, type GameEvent, type GameState } from '@fuf/shared';
 import type { GameController } from '../controller/GameController';
 import { ANIMAL_POSES, ANIMAL_VIEWS, animalDataUrl } from '../ui/animalArt';
+import { AbilityLayer } from './layers/AbilityLayer';
 import { MARGIN, TILE } from './layers/constants';
 import { textureKey } from './layers/facing';
-import { FiberLayer } from './layers/FiberLayer';
+import { FiberLayer, buildDuration } from './layers/FiberLayer';
 import { FigureLayer } from './layers/FigureLayer';
 import { PlanLayer } from './layers/PlanLayer';
 import { TerrainLayer } from './layers/TerrainLayer';
@@ -18,12 +19,13 @@ export interface BoardOptions {
 }
 
 /**
- * Spielfeld. Koordiniert Eingabe und die Zeichenebenen (Gelände, Leitungen, Planung, Figuren).
+ * Spielfeld. Koordiniert Eingabe und die Zeichenebenen (Gelände, Fähigkeits-Spuren, Leitungen, Planung, Figuren).
  * Weltkoordinate (0,0) ist die linke obere Ecke des Spielrasters; der Randbereich liegt bei negativen Koordinaten.
  */
 export class BoardScene extends Phaser.Scene {
   private terrain!: TerrainLayer;
   private fibers!: FiberLayer;
+  private abilities!: AbilityLayer;
   private plan!: PlanLayer;
   private figures!: FigureLayer;
   private peerPlans = new Map<string, Cell[]>();
@@ -56,6 +58,7 @@ export class BoardScene extends Phaser.Scene {
     this.terrain.create(state.scoutRevealed);
     this.terrain.setConnected(state.connected);
     this.fibers = new FiberLayer(this, map, reduceMotion);
+    this.abilities = new AbilityLayer(this, map, reduceMotion);
     this.plan = new PlanLayer(this, map, this.planner, reduceMotion);
     this.figures = new FigureLayer(this, this.planner, map, this.controller.localPlayerId, reduceMotion);
 
@@ -81,6 +84,7 @@ export class BoardScene extends Phaser.Scene {
     );
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.cleanup.forEach((fn) => fn()));
     this.fibers.draw(state);
+    this.abilities.draw(state);
     this.refresh();
   }
 
@@ -128,16 +132,31 @@ export class BoardScene extends Phaser.Scene {
     this.terrain.setRevealed(state.scoutRevealed);
     let animating = false;
     for (const event of events) {
+      if (event.type === 'abilityUsed' && event.animal === 'fox') {
+        const origin = this.figures.position(event.playerId);
+        if (origin) this.abilities.scout(origin);
+        this.figures.ability(event.playerId, 'fox');
+        this.plan.revealHint();
+      }
       if (event.type === 'routeBuilt') {
         this.peerPlans.delete(event.playerId);
-        this.figures.dig(event.playerId);
+        const route = state.routes.at(-1);
+        const animal = findPlayer(state, event.playerId)?.animal;
+        // Bau-Fähigkeit: eigene Animation und bleibende Spur (Brücke, Tunnel, gespaltener Fels)
+        let onCell: ((index: number) => void) | null = null;
+        if (route?.abilityUsed && animal) {
+          onCell = this.abilities.animate(state, route, animal);
+          this.figures.ability(event.playerId, animal);
+        } else {
+          this.figures.dig(event.playerId);
+        }
         animating = true;
         // Anschluss erst zeigen, wenn die Leitung am Haus angekommen ist
-        this.fibers.animate(state, event.cells, () => this.terrain.setConnected(state.connected));
+        this.fibers.animate(state, event.cells, () => this.terrain.setConnected(state.connected), onCell ?? undefined);
       }
       if (event.type === 'buildingConnected') {
         const pos = this.terrain.socketPosition(event.buildingId);
-        const delay = this.options.reduceMotion ? 0 : Math.min(1400, 110 * (state.routes.at(-1)?.cells.length ?? 0));
+        const delay = this.options.reduceMotion ? 0 : buildDuration(state.routes.at(-1)?.cells.length ?? 0);
         this.time.delayedCall(delay, () => {
           if (pos) this.figures.houseBurst(pos.x, pos.y);
           this.figures.celebrate(event.playerId);
@@ -148,6 +167,7 @@ export class BoardScene extends Phaser.Scene {
       this.terrain.setConnected(state.connected);
       this.fibers.draw(state);
     }
+    this.abilities.draw(state);
     this.refresh();
   }
 }

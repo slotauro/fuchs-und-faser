@@ -40,6 +40,8 @@ export class PlanLayer {
   private snapshot: PlanSnapshot | null = null;
   private peers: { pts: Pt[]; color: number }[] = [];
   private hint: Cell[] | null = null;
+  /** Startzeit der Pfotenspur-Animation; `null` = noch zu setzen, `-Infinity` = sofort ganz sichtbar */
+  private hintShownAt: number | null = -Infinity;
   private gridAlpha = 0;
   private pointerInside = false;
 
@@ -110,6 +112,11 @@ export class PlanLayer {
     };
   }
 
+  /** Pfotenspur nach dem Einsatz der Spürnase Abdruck für Abdruck einblenden. */
+  revealHint(): void {
+    if (!this.reduceMotion) this.hintShownAt = null;
+  }
+
   setPointerInside(inside: boolean): void {
     this.pointerInside = inside;
   }
@@ -125,7 +132,12 @@ export class PlanLayer {
     this.gridAlpha += (target - this.gridAlpha) * 0.15;
     this.gridG.setAlpha(this.gridAlpha);
 
-    if (this.hint) this.drawPaws(g, this.hint);
+    if (this.hint) {
+      this.hintShownAt ??= time;
+      // nach einer kurzen Pause (Suchwelle) ein Abdruck alle 90 ms
+      const shown = Math.floor((time - this.hintShownAt - 500) / 90) + 1;
+      if (shown > 0) this.drawPaws(g, this.hint.slice(0, shown));
+    }
 
     for (const peer of this.peers) {
       strokePath(g, peer.pts, TILE * 0.18, peer.color, 0.25);

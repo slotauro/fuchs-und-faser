@@ -29,6 +29,17 @@ Jede Fähigkeit gilt einmal pro Runde und Spieler.
 
 Bau-Fähigkeiten werden „scharf geschaltet“ und **nur verbraucht, wenn sie in einer erfolgreich gebauten Route tatsächlich wirken**. Ein abgelehnter Bau verbraucht nichts (Szenario C).
 
+**Darstellung:** Jede Fähigkeit hat eine eigene Animation. Bau-Fähigkeiten hinterlassen außerdem eine bleibende Spur, die aus dem Spielstand gezeichnet wird. Sie ist deshalb nach dem Neuladen und für Mitspieler sichtbar.
+
+| Tier | Animation | Bleibende Spur |
+| --- | --- | --- |
+| Fuchs | Schnüffeln mit Funken, goldene Suchwelle, aufgedeckte Leerrohre leuchten auf, Pfotenspur erscheint Abdruck für Abdruck | – (Leerrohre bleiben aufgedeckt) |
+| Maulwurf | Taucht ab und wieder auf; Erde spritzt am Eingang, ein Erdbuckel wandert durch den Tunnel, der Hügel am Ausgang ploppt auf | Erdabdeckung über der Leitung, darauf die Leitung gestrichelt (unterirdisch), Maulwurfshügel an Ein- und Ausgang |
+| Biber | Hämmern; Planken fallen Kachel für Kachel ein, Wasser spritzt | Holzbrücke unter der Leitung |
+| Dachs | Ausholen und Zuschlagen; pro Felskachel Funkenblitz, Splitter und kurzes Beben | Freigeschlagene Schotterrinne mit Rissen und Geröll |
+
+Die Effekte hängen am Fortschritt der Leitungsanimation (`FiberLayer.animate` meldet jede erreichte Kachel), nicht an eigenen Timern. So bleiben sie auch unter Last synchron zur Leitungsspitze. Mit „Animationen reduzieren“ entfallen alle Animationen, die Spuren erscheinen sofort.
+
 ## Rundenende und Wertung
 
 - Gewonnen: alle Gebäude angeschlossen. Verloren: Zeit abgelaufen, aufgegeben, oder das Restbudget reicht nachweislich für kein weiteres Gebäude (optimistische Prüfung mit allen noch freien Fähigkeiten).

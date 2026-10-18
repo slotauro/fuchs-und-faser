@@ -8,6 +8,9 @@ const FIBER_DEEP = 0x9c3f0b;
 const FIBER_GLOW = 0xffb347;
 const FIBER_SHINE = 0xffe2bf;
 
+/** Dauer der Bauanimation für eine Route mit `n` Kacheln. */
+export const buildDuration = (n: number) => Math.min(1400, 110 * n);
+
 interface DrawnRoute {
   cells: Cell[];
   pts: Pt[];
@@ -110,13 +113,24 @@ export class FiberLayer {
     );
   }
 
-  /** Neue Route Abschnitt für Abschnitt einblenden. */
-  animate(state: GameState, cells: Cell[], onDone: () => void): void {
+  /**
+   * Neue Route Abschnitt für Abschnitt einblenden. `onCell(i)` meldet, wann die Leitungsspitze die Mitte
+   * von Kachel `i` erreicht – daran hängen sich die Fähigkeits-Effekte, damit sie nie aus dem Takt geraten.
+   */
+  animate(state: GameState, cells: Cell[], onDone: () => void, onCell?: (index: number) => void): void {
     const route = state.routes.find(
       (r) => r.cells.length === cells.length && r.cells.every((c, i) => c.x === cells[i].x && c.y === cells[i].y),
     );
+    const n = cells.length;
+    let reached = 0;
+    // Die Leitung beginnt am Netz vor der ersten Kachel; Kachel i liegt bei (i + 1) / n der Strecke
+    const reach = (progress: number) => {
+      const upTo = Math.min(n, Math.floor(progress * n + 1e-6));
+      for (; reached < upTo; reached++) onCell?.(reached);
+    };
     if (!route || this.reduceMotion) {
       this.draw(state);
+      reach(1);
       onDone();
       return;
     }
@@ -124,15 +138,17 @@ export class FiberLayer {
     this.scene.tweens.addCounter({
       from: 0,
       to: 1,
-      duration: Math.min(1400, 110 * cells.length),
+      duration: buildDuration(cells.length),
       ease: 'Sine.easeInOut',
       onUpdate: (tween) => {
         if (this.animating) this.animating.progress = tween.getValue() ?? 1;
         this.draw(state);
+        reach(this.animating?.progress ?? 1);
       },
       onComplete: () => {
         this.animating = null;
         this.draw(state);
+        reach(1);
         onDone();
       },
     });

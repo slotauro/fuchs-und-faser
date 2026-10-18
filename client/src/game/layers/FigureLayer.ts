@@ -20,6 +20,9 @@ interface Figure {
   stepToggle: boolean;
 }
 
+/** Ein Schritt einer Tween-Kette; das Ziel gibt die Kette vor. */
+type TweenStep = Omit<Phaser.Types.Tweens.TweenBuilderConfig, 'targets'>;
+
 const SPRITE = TILE * 1.0;
 /** Füße der Figur liegen etwas unterhalb der Zellmitte, damit sie auf dem Feld „steht“. */
 const FEET = TILE * 0.3;
@@ -27,7 +30,8 @@ const FEET = TILE * 0.3;
 /**
  * Tierfiguren auf dem Spielfeld. Eigene Figur am Ende der Planung, Mitspieler am Ende ihrer Vorschau
  * bzw. am Verteiler. Die Figur schaut in Laufrichtung (Front-, Seiten- oder Rückansicht) und behält sie im Stand.
- * Animationen: Idle-Atmen, Schritt-Posen und Hüpfen beim Laufen, Graben beim Bauen, Jubeln beim Anschluss.
+ * Animationen: Idle-Atmen, Schritt-Posen und Hüpfen beim Laufen, Graben beim Bauen, eigene Bewegung je Fähigkeit,
+ * Jubeln beim Anschluss.
  */
 export class FigureLayer {
   private figures = new Map<string, Figure>();
@@ -212,6 +216,52 @@ export class FigureLayer {
     if (!figure || this.reduceMotion) return;
     this.scene.tweens.add({ targets: figure.body, angle: { from: -9, to: 9 }, duration: 90, yoyo: true, repeat: 4, onComplete: () => figure.body.setAngle(0) });
     this.burst(figure.root.x, figure.root.y + FEET, 'fx-dirt', [0xffffff], 16, 240);
+  }
+
+  /** Ungefähre Körpermitte der Figur (Ursprung für Effekte wie die Suchwelle). */
+  position(playerId: string): { x: number; y: number } | null {
+    const figure = this.figures.get(playerId);
+    return figure ? { x: figure.root.x, y: figure.root.y - TILE * 0.1 } : null;
+  }
+
+  /** Eigene Bewegung je Tier, wenn es seine Fähigkeit einsetzt. */
+  ability(playerId: string, animal: AnimalId): void {
+    const figure = this.figures.get(playerId);
+    if (!figure || this.reduceMotion) return;
+    const { body, root } = figure;
+    const reset = () => body.setPosition(0, 0).setAngle(0).setScale(1).setAlpha(1);
+    this.scene.tweens.killTweensOf(body);
+    reset();
+    const chain = (tweens: TweenStep[]) =>
+      this.scene.tweens.chain({ targets: body, tweens, onComplete: reset });
+    const feet = { x: root.x, y: root.y + FEET };
+    if (animal === 'fox') {
+      // Schnüffeln: schnelle Nicker, dann ein Hüpfer mit Funken über dem Kopf
+      chain([
+        { angle: 7, y: 4, duration: 90, yoyo: true, repeat: 2, ease: 'Sine.easeInOut' },
+        { y: -TILE * 0.18, duration: 140, yoyo: true, ease: 'Quad.easeOut' },
+      ]);
+      this.scene.time.delayedCall(540, () => this.burst(root.x, root.y - TILE * 0.7, 'fx-star', [0xffd54d, 0xfffaf0], 8, 180));
+    } else if (animal === 'mole') {
+      // Abtauchen und wieder auftauchen
+      chain([
+        { y: TILE * 0.22, scaleY: 0.5, alpha: 0.2, duration: 240, ease: 'Quad.easeIn', hold: 420 },
+        { y: -TILE * 0.2, scaleY: 1.08, alpha: 1, duration: 200, ease: 'Quad.easeOut' },
+        { y: 0, scaleY: 1, duration: 220, ease: 'Bounce.easeOut' },
+      ]);
+      this.burst(feet.x, feet.y, 'fx-dirt', [0xffffff], 14, 240);
+    } else if (animal === 'beaver') {
+      // Hämmern im Takt der Planken
+      chain([{ angle: 10, y: 3, duration: 70, yoyo: true, repeat: 6, ease: 'Quad.easeIn' }]);
+    } else {
+      // Ausholen und kräftig zuschlagen, zweimal
+      const swing: TweenStep[] = [
+        { angle: -16, duration: 170, ease: 'Sine.easeOut' },
+        { angle: 14, duration: 70, ease: 'Quad.easeIn' },
+        { angle: 0, duration: 220, ease: 'Back.easeOut' },
+      ];
+      chain([...swing, ...swing.map((t) => ({ ...t }))]);
+    }
   }
 
   /** Jubeln: Figur springt, wenn sie ein Gebäude angeschlossen hat. */
