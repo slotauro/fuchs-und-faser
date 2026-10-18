@@ -1,9 +1,12 @@
 import {
-  ANIMALS,
+  abilityTileCost,
   analyzeRoute,
+  canArmAt,
   cellKey,
   isAdjacent,
   networkKeys,
+  routeAbility,
+  type AnimalId,
   type Cell,
   type GameError,
   type RouteAnalysis,
@@ -44,6 +47,8 @@ export class Planner {
 
   private changed(): void {
     this.rejected = null;
+    // Ohne passendes Hindernis vor der Figur und in der Planung erlischt die scharf geschaltete Fähigkeit wieder
+    if (this.abilityArmed && !this.canArm && !this.plansAbilityTile()) this.abilityArmed = false;
     this.controller.sendPlan(this.cells);
     this.listeners.forEach((l) => l());
   }
@@ -57,11 +62,29 @@ export class Planner {
     return state.players.find((p) => p.id === this.controller.localPlayerId);
   }
 
-  analysis(): RouteAnalysis {
+  /** Bau-Fähigkeit, die für die aktuelle Planung gilt (scharf geschaltet oder passiv). */
+  get activeAbility(): AnimalId | null {
     const player = this.player;
-    const active = this.abilityArmed && player && ANIMALS[player.animal].kind === 'route' ? player.animal : null;
+    return player ? routeAbility(player, this.abilityArmed) : null;
+  }
+
+  /** Steht die Figur direkt vor dem Hindernis, für das die eigene Bau-Fähigkeit gedacht ist? */
+  get canArm(): boolean {
+    const player = this.player;
+    if (!player || player.abilityUsed) return false;
+    const behind = new Set([...this.controller.getState().builtCells, ...this.cells.slice(0, -1).map(cellKey)]);
+    return canArmAt(this.controller.map, player.animal, this.figure, behind);
+  }
+
+  private plansAbilityTile(): boolean {
+    const player = this.player;
+    const { tiles } = this.controller.map;
+    return !!player && this.cells.some((c) => abilityTileCost(player.animal, tiles[c.y][c.x]) !== undefined);
+  }
+
+  analysis(): RouteAnalysis {
     return analyzeRoute(this.controller.map, this.controller.getState(), this.cells, {
-      activeAbility: active,
+      activeAbility: this.activeAbility,
       partial: true,
     });
   }
@@ -219,9 +242,12 @@ export class Planner {
     this.clear();
   }
 
-  setArmed(armed: boolean): void {
+  /** Schaltet die Bau-Fähigkeit scharf (nur direkt vor dem passenden Hindernis) oder wieder ab. */
+  setArmed(armed: boolean): boolean {
+    if (armed && !this.canArm) return false;
     this.abilityArmed = armed;
     this.changed();
+    return true;
   }
 
   reject(error: GameError): void {

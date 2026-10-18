@@ -95,6 +95,10 @@ export class BoardScene extends Phaser.Scene {
 
   private refresh(): void {
     const state = this.controller.getState();
+    // Schon beim Planen verwandeln sich Wurzeln in einen Graben, Wasser bekommt eine Brücke, Fels wird gespalten
+    const { cells } = this.planner;
+    const valid = state.status === 'playing' ? cells.slice(0, this.planner.analysis().error?.cellIndex ?? cells.length) : [];
+    this.abilities.preview(valid, this.planner.activeAbility);
     this.plan.refresh(state, this.peerPlans);
     this.figures.refresh(state, this.peerPlans);
   }

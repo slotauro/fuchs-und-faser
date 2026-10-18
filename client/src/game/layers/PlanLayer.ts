@@ -239,9 +239,7 @@ export class PlanLayer {
     }
     const raw = this.map.tiles[cell.y][cell.x];
     const tile = effectiveTile(raw, state.scoutRevealed);
-    const player = this.planner.player;
-    const ability = this.planner.abilityArmed && player ? player.animal : null;
-    const { cost } = tileCost(raw, state.scoutRevealed, ability);
+    const { cost } = tileCost(raw, state.scoutRevealed, this.planner.activeAbility);
     const built = state.builtCells.includes(cellKey(cell));
     let text = TILE_INFO[tile].label;
     if (built) text += ' · Leitung';

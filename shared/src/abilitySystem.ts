@@ -1,4 +1,5 @@
-import type { AnimalId, GameState, HalfPoints, PlayerState, TileType } from './types';
+import { cellKey } from './tiles';
+import type { AnimalId, Cell, GameState, HalfPoints, MapDef, PlayerState, TileType } from './types';
 
 export interface AnimalInfo {
   id: AnimalId;
@@ -7,8 +8,11 @@ export interface AnimalInfo {
   abilityName: string;
   abilityText: string;
   character: string;
-  /** Bei `instant` wird die Fähigkeit sofort ausgelöst, sonst für die nächste Route scharf geschaltet. */
-  kind: 'instant' | 'route';
+  /**
+   * `instant`: wird sofort ausgelöst. `route`: wird direkt vor dem passenden Hindernis für die laufende
+   * Planung scharf geschaltet. `passive`: wirkt ohne Aktivierung in der ersten Route, in der sie greift.
+   */
+  kind: 'instant' | 'route' | 'passive';
 }
 
 export const ANIMALS: Record<AnimalId, AnimalInfo> = {
@@ -28,7 +32,7 @@ export const ANIMALS: Record<AnimalId, AnimalInfo> = {
     role: 'Der Tunnelprofi',
     abilityName: 'Maulwurfstunnel',
     abilityText:
-      'Die nächste Route darf eine zusammenhängende Wurzelzone (bis 3 Kacheln) unterqueren – 1 Punkt pro Kachel.',
+      'Direkt vor einer Wurzelzone einsetzbar: Der Maulwurf gräbt einen Graben durch bis zu 3 Wurzelkacheln – 1 Punkt pro Kachel.',
     character: 'Ruhig, robust und ein echter Tiefbau-Profi.',
     kind: 'route',
   },
@@ -38,7 +42,7 @@ export const ANIMALS: Record<AnimalId, AnimalInfo> = {
     role: 'Der Infrastruktur-Bauer',
     abilityName: 'Cleverer Übergang',
     abilityText:
-      'Die nächste Route darf Wasser an markierten Querungsstellen überbrücken – 1 Punkt pro Kachel.',
+      'Direkt vor einer markierten Querungsstelle einsetzbar: Der Biber baut eine Brücke über das Wasser – 1 Punkt pro Kachel.',
     character: 'Praktisch, handwerklich begabt und zuverlässig.',
     kind: 'route',
   },
@@ -47,9 +51,10 @@ export const ANIMALS: Record<AnimalId, AnimalInfo> = {
     name: 'Dachs',
     role: 'Der Felsenspezialist',
     abilityName: 'Hart im Nehmen',
-    abilityText: 'In der nächsten Route kostet felsiger Untergrund nur 0,5 statt 3 Punkte pro Kachel.',
+    abilityText:
+      'Wirkt automatisch: In der ersten Route über Felsen kostet felsiger Untergrund nur 0,5 statt 3 Punkte pro Kachel.',
     character: 'Ausdauernd, kräftig und unerschrocken.',
-    kind: 'route',
+    kind: 'passive',
   },
 };
 
@@ -74,4 +79,29 @@ export function findPlayer(state: GameState, playerId: string): PlayerState | un
 
 export function canUseAbility(player: PlayerState): boolean {
   return !player.abilityUsed;
+}
+
+/**
+ * Bau-Fähigkeit, die für eine Route des Spielers gilt: die passive Fähigkeit wirkt immer,
+ * eine `route`-Fähigkeit nur, wenn sie scharf geschaltet ist. Verbrauchte Fähigkeiten wirken nicht mehr.
+ */
+export function routeAbility(player: PlayerState, armed: boolean): AnimalId | null {
+  if (player.abilityUsed) return null;
+  const { kind } = ANIMALS[player.animal];
+  return kind === 'passive' || (kind === 'route' && armed) ? player.animal : null;
+}
+
+/**
+ * Darf das Tier seine Bau-Fähigkeit auf `cell` scharf schalten? Nur direkt vor (oder auf) einer Kachel,
+ * auf der sie wirkt – der Maulwurf vor Wurzeln, der Biber vor einer Querungsstelle.
+ * `skip` sind Kacheln, die nicht mehr vor der Figur liegen (z. B. die bereits geplante Strecke).
+ */
+export function canArmAt(map: MapDef, animal: AnimalId, cell: Cell, skip: Set<string> = new Set()): boolean {
+  if (ANIMALS[animal].kind !== 'route') return false;
+  const acts = (x: number, y: number) =>
+    x >= 0 && y >= 0 && x < map.width && y < map.height && abilityTileCost(animal, map.tiles[y][x]) !== undefined;
+  if (acts(cell.x, cell.y)) return true;
+  return [[1, 0], [-1, 0], [0, 1], [0, -1]].some(
+    ([dx, dy]) => !skip.has(cellKey({ x: cell.x + dx, y: cell.y + dy })) && acts(cell.x + dx, cell.y + dy),
+  );
 }

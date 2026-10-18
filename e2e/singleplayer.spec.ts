@@ -27,13 +27,28 @@ test('Szenario B: ungültige Route wird abgelehnt, Budget bleibt unverändert', 
 
 test('Szenario C: Maulwurfstunnel wird genau einmal angewendet', async ({ page }) => {
   await startSolo(page, 'wurzelallee', 'mole');
+  // erst direkt vor der Wurzelzone lässt sich die Fähigkeit scharf schalten
+  await expect(page.getByTestId('ability')).toBeDisabled();
+  await planRoute(page, '2,4 3,4 4,4 5,4 6,4');
+  await expect(page.getByTestId('plan-msg')).toContainText('Wurzelzone voraus');
   await page.getByTestId('ability').click();
   await expect(page.getByTestId('ability')).toHaveAttribute('aria-pressed', 'true');
-  await planRoute(page, '2,4 3,4 4,4 5,4 6,4 7,4 8,4 9,4 10,4 11,4 12,4 13,4 14,4');
+  await planRoute(page, '7,4 8,4 9,4 10,4 11,4 12,4 13,4 14,4');
   await expect(page.getByTestId('plan-msg')).toContainText('mit Maulwurfstunnel');
   await page.getByTestId('build').click();
   await expect(page.getByTestId('result')).toContainText('Alle Gebäude sind am Netz');
   await expect(page.getByTestId('budget')).toHaveText('11 / 26');
+  await expect(page.getByTestId('ability')).toContainText('verbraucht');
+});
+
+test('Dachs: Felsen werden ohne Aktivierung günstiger', async ({ page }) => {
+  await startSolo(page, 'erstes-haus', 'badger');
+  await expect(page.getByTestId('ability')).toBeDisabled();
+  await expect(page.getByTestId('ability')).toContainText('automatisch');
+  await planRoute(page, '2,3 2,4 3,4 4,4 5,4 6,4 7,4 8,4 9,4 10,4 11,4');
+  await expect(page.getByTestId('plan-msg')).toContainText('mit Hart im Nehmen');
+  await page.getByTestId('build').click();
+  await expect(page.getByTestId('result')).toContainText('Alle Gebäude sind am Netz');
   await expect(page.getByTestId('ability')).toContainText('verbraucht');
 });
 

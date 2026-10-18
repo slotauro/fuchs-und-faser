@@ -5,27 +5,34 @@ import { cellRng } from '../art/rng';
 import { abilityTrace, abilityTraces, type AbilityCell, type AbilityTrace } from './abilityCells';
 import { DEPTH, TILE, center } from './constants';
 import { buildDuration } from './FiberLayer';
-import { dashPath, type Pt } from './fiberPath';
+import type { Pt } from './fiberPath';
 
-const FIBER = 0xff8a1f;
 const GOLD = 0xffd54d;
 
 const mid = (a: Cell, b: Cell): Pt => ({ x: (center(a).x + center(b).x) / 2, y: (center(a).y + center(b).y) / 2 });
 
+/** Deckkraft der Vorschau während der Planung; beim Bau wird die Spur „echt“. */
+const PREVIEW_ALPHA = 0.85;
+/** frisch ausgehobene, helle Erde – hebt sich deutlich von der dunklen Wurzelzone ab */
+const DUG = 0xc29a66;
+const TRENCH_FLOOR = 0x3f2a16;
+
 /**
  * Spuren und Animationen der Tierfähigkeiten.
- * Bleibend (aus dem Spielstand gezeichnet): Biberbrücke, Maulwurfstunnel mit Hügeln, gespaltener Fels.
- * Einmalig: Planken fallen ein, Erdbuckel wandert durch den Tunnel, Felsschläge, Suchwelle der Spürnase.
+ * Bleibend (aus dem Spielstand gezeichnet): Biberbrücke, Maulwurfsgraben, gespaltener Fels.
+ * Schon während der Planung verwandeln sich die betroffenen Kacheln (Vorschau), damit klar ist, warum dort gebaut werden kann.
+ * Einmalig: Planken fallen ein, Erdbuckel wandert durch den Graben, Felsschläge, Suchwelle der Spürnase.
  */
 export class AbilityLayer {
-  /** unter der Leitung: Felsrisse und Geröll */
+  /** unter der Leitung: Graben, Felsrinne */
   private under: Phaser.GameObjects.Graphics;
-  /** über der Leitung: Erdabdeckung des Tunnels mit unterirdischer Leitung */
-  private over: Phaser.GameObjects.Graphics;
+  /** Vorschau der eigenen Planung */
+  private previewG: Phaser.GameObjects.Graphics;
   private sprites = new Map<string, Phaser.GameObjects.Image>();
   /** Zellen, deren Spur erst erscheint, wenn die Bauanimation sie erreicht */
   private hidden = new Set<string>();
   private state: GameState | null = null;
+  private previewTrace: AbilityTrace | null = null;
   private drawnKey = '';
 
   constructor(
@@ -34,7 +41,7 @@ export class AbilityLayer {
     private reduceMotion: boolean,
   ) {
     this.under = scene.add.graphics().setDepth(DEPTH.structures);
-    this.over = scene.add.graphics().setDepth(DEPTH.tunnel);
+    this.previewG = scene.add.graphics().setDepth(DEPTH.structures).setAlpha(PREVIEW_ALPHA);
     AbilityLayer.makeFxTextures(scene);
   }
 
@@ -51,27 +58,40 @@ export class AbilityLayer {
     }
   }
 
+  /**
+   * Vorschau der eigenen Planung: Kacheln, auf denen die Fähigkeit wirken wird (bis zur ersten ungültigen Kachel).
+   * `null` blendet die Vorschau aus.
+   */
+  preview(cells: Cell[] | null, animal: AnimalId | null): void {
+    const route: BuiltRoute | null =
+      cells?.length && animal ? { actionId: 'plan', playerId: '', cells, cost: 0, abilityUsed: true } : null;
+    this.previewTrace = route && animal ? abilityTrace(this.map, route, animal) : null;
+    if (this.state) this.draw(this.state);
+  }
+
   draw(state: GameState): void {
     this.state = state;
     const traces = abilityTraces(this.map, state);
-    const key = `${traces.map((t) => t.route.actionId).join('|')}#${[...this.hidden].join(';')}`;
+    const plan = this.previewTrace;
+    const key = [
+      traces.map((t) => t.route.actionId).join('|'),
+      [...this.hidden].join(';'),
+      plan ? `${plan.animal}:${plan.route.cells.map(cellKey).join(';')}` : '',
+    ].join('#');
     if (key === this.drawnKey) return;
     this.drawnKey = key;
     this.under.clear();
-    this.over.clear();
+    this.previewG.clear();
     const wanted = new Map<string, () => Phaser.GameObjects.Image>();
-    for (const trace of traces) {
+    const add = (trace: AbilityTrace, g: Phaser.GameObjects.Graphics, prefix: string, alpha: number) => {
       const visible = trace.cells.filter((c) => !this.hidden.has(cellKey(c.cell)));
-      if (trace.animal === 'beaver') for (const c of visible) wanted.set(`bridge:${cellKey(c.cell)}`, () => this.bridge(c));
-      if (trace.animal === 'badger') for (const c of visible) this.splitRock(c);
-      if (trace.animal === 'mole') {
-        this.tunnel(trace, visible);
-        for (const p of trace.portals) {
-          if (this.hidden.has(cellKey(p.cell))) continue;
-          wanted.set(`hill:${cellKey(p.cell)}`, () => this.molehill(mid(p.cell, p.toward)));
-        }
-      }
-    }
+      if (trace.animal === 'beaver')
+        for (const c of visible) wanted.set(`${prefix}bridge:${cellKey(c.cell)}`, () => this.bridge(c).setAlpha(alpha));
+      if (trace.animal === 'badger') for (const c of visible) this.splitRock(g, c);
+      if (trace.animal === 'mole') this.trench(g, trace.route.cells, visible);
+    };
+    for (const trace of traces) add(trace, this.under, '', 1);
+    if (plan) add(plan, this.previewG, 'plan-', PREVIEW_ALPHA);
     for (const [k, sprite] of this.sprites) {
       if (wanted.has(k)) continue;
       sprite.destroy();
@@ -91,62 +111,97 @@ export class AbilityLayer {
       .setDepth(DEPTH.structures);
   }
 
-  private molehill(p: Pt): Phaser.GameObjects.Image {
-    return this.scene.add
-      .image(p.x, p.y + TILE * 0.06, 'molehill')
-      .setOrigin(0.5, 0.8)
-      .setDisplaySize(TILE * 0.56, TILE * 0.41)
-      .setDepth(DEPTH.tunnel + 0.01);
-  }
-
-  /** Erdstreifen über der Leitung, darauf die unterirdische Leitung gestrichelt und durchscheinend. */
-  private tunnel(trace: AbilityTrace, visible: AbilityCell[]): void {
-    const g = this.over;
-    const route = trace.route.cells;
+  /**
+   * Maulwurfsgraben: aufgewühlte Erde deckt die Wurzelkachel ganz ab, in der Mitte ein offener Graben,
+   * an dessen Wänden die gekappten Wurzeln enden. Die Leitung liegt sichtbar im Graben.
+   */
+  private trench(g: Phaser.GameObjects.Graphics, route: Cell[], visible: AbilityCell[]): void {
     const shown = new Set(visible.map((c) => c.index));
-    // Teilstücke: von jeder sichtbaren Tunnelzelle zu ihren Nachbarn in der Route (bis zur Kachelkante)
+    const trenchCells = new Set(visible.map((c) => cellKey(c.cell)));
+    // Grabenstücke: von jeder Zelle zu ihren Nachbarn in der Route (bis zur Kachelkante, wenn dort kein Graben ist)
     const pieces: [Pt, Pt][] = [];
     for (const { index } of visible) {
       const c = center(route[index]);
+      pieces.push([c, c]);
       for (const n of [index - 1, index + 1]) {
-        if (!route[n]) continue;
-        if (shown.has(n) && n < index) continue; // Verbindung nur einmal zeichnen
+        if (!route[n] || (shown.has(n) && n < index)) continue;
         pieces.push([c, shown.has(n) ? center(route[n]) : mid(route[index], route[n])]);
       }
-      pieces.push([c, c]);
     }
-    for (const [color, width] of [[hex(P.soilDark), TILE * 0.62], [hex(P.soil), TILE * 0.52]] as const) {
-      g.fillStyle(color, 1);
+    const band = (width: number, color: number, alpha = 1) => {
+      g.fillStyle(color, alpha);
       for (const [a, b] of pieces) {
-        const x = Math.min(a.x, b.x) - width / 2;
-        const y = Math.min(a.y, b.y) - width / 2;
-        g.fillRoundedRect(x, y, Math.abs(a.x - b.x) + width, Math.abs(a.y - b.y) + width, width * 0.4);
+        g.fillRoundedRect(
+          Math.min(a.x, b.x) - width / 2,
+          Math.min(a.y, b.y) - width / 2,
+          Math.abs(a.x - b.x) + width,
+          Math.abs(a.y - b.y) + width,
+          width * 0.3,
+        );
       }
-    }
-    // Wurzeln und Krümel auf der Erde
+    };
+
     for (const { cell } of visible) {
-      const rnd = cellRng(`${this.map.id}:tunnel`, cell.x, cell.y);
-      const p = center(cell);
-      g.lineStyle(TILE * 0.035, hex(P.root), 0.9);
-      for (let i = 0; i < 2; i++) {
-        const a = rnd() * Math.PI * 2;
-        const r = TILE * 0.2;
-        const sx = p.x + Math.cos(a) * r;
-        const sy = p.y + Math.sin(a) * r;
-        g.beginPath();
-        g.moveTo(sx, sy);
-        g.lineTo(sx - Math.cos(a) * r * 0.7 + (rnd() - 0.5) * TILE * 0.1, sy - Math.sin(a) * r * 0.7 + (rnd() - 0.5) * TILE * 0.1);
-        g.strokePath();
+      const x0 = cell.x * TILE;
+      const y0 = cell.y * TILE;
+      g.fillStyle(DUG, 1).fillRect(x0, y0, TILE, TILE);
+      // dunkler Rand nur dort, wo kein weiterer Graben anschließt
+      g.fillStyle(hex(P.soilDark), 1);
+      if (!trenchCells.has(cellKey({ x: cell.x, y: cell.y - 1 }))) g.fillRect(x0, y0, TILE, 4);
+      if (!trenchCells.has(cellKey({ x: cell.x, y: cell.y + 1 }))) g.fillRect(x0, y0 + TILE - 4, TILE, 4);
+      if (!trenchCells.has(cellKey({ x: cell.x - 1, y: cell.y }))) g.fillRect(x0, y0, 4, TILE);
+      if (!trenchCells.has(cellKey({ x: cell.x + 1, y: cell.y }))) g.fillRect(x0 + TILE - 4, y0, 4, TILE);
+      // Erdkrümel
+      const rnd = cellRng(`${this.map.id}:trench`, cell.x, cell.y);
+      for (let i = 0; i < 10; i++) {
+        g.fillStyle(rnd() < 0.5 ? hex(P.soilDark) : hex(P.soil), 0.6);
+        g.fillCircle(x0 + 8 + rnd() * (TILE - 16), y0 + 8 + rnd() * (TILE - 16), TILE * (0.012 + rnd() * 0.012));
       }
-      g.fillStyle(hex(P.soilDark), 0.8);
-      for (let i = 0; i < 4; i++) g.fillCircle(p.x + (rnd() - 0.5) * TILE * 0.4, p.y + (rnd() - 0.5) * TILE * 0.4, TILE * 0.018);
     }
-    for (const [a, b] of pieces) if (a !== b) dashPath(g, [a, b], TILE * 0.07, FIBER, 0.7, TILE * 0.1, TILE * 0.08, 0);
+
+    // Grabenwand, Schatten und Sohle
+    band(TILE * 0.68, hex(P.outline), 0.35);
+    band(TILE * 0.62, hex(P.soilDark));
+    band(TILE * 0.5, TRENCH_FLOOR);
+
+    for (const { cell, index, axis } of visible) {
+      const rnd = cellRng(`${this.map.id}:trench-roots`, cell.x, cell.y);
+      const p = center(cell);
+      const prev = route[index - 1];
+      const next = route[index + 1];
+      const straight = !prev || !next || prev.x === next.x || prev.y === next.y;
+      // gekappte Wurzeln: laufen von außen auf den Graben zu und enden mit heller Schnittfläche an der Wand
+      if (straight) {
+        for (const side of [-1, 1]) {
+          for (let i = 0; i < 2; i++) {
+            const along = (i === 0 ? -0.22 : 0.18) * TILE + (rnd() - 0.5) * TILE * 0.12;
+            const tilt = (rnd() - 0.5) * TILE * 0.14;
+            const wall = side * TILE * 0.31;
+            const outer = side * TILE * 0.47;
+            const pt = (a: number, q: number) => (axis === 'h' ? { x: p.x + a, y: p.y + q } : { x: p.x + q, y: p.y + a });
+            const from = pt(along + tilt, outer);
+            const to = pt(along, wall);
+            g.lineStyle(TILE * 0.05, hex(P.root), 1).lineBetween(from.x, from.y, to.x, to.y);
+            g.fillStyle(hex(P.rootLight), 1).fillCircle(to.x, to.y, TILE * 0.03);
+            g.lineStyle(1.5, hex(P.outline), 0.6).strokeCircle(to.x, to.y, TILE * 0.03);
+          }
+        }
+      }
+      // ausgehobene Erde in den Ecken
+      for (const [cx, cy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+        if (rnd() < 0.35) continue;
+        const hx = p.x + cx * TILE * (0.36 + rnd() * 0.04);
+        const hy = p.y + cy * TILE * (0.38 + rnd() * 0.03);
+        const r = TILE * (0.045 + rnd() * 0.02);
+        g.fillStyle(hex(P.outline), 0.25).fillEllipse(hx + 2, hy + 3, r * 2.4, r * 1.6);
+        g.fillStyle(hex(P.soil), 1).fillEllipse(hx, hy, r * 2.4, r * 1.7);
+        g.fillStyle(hex(P.rootLight), 1).fillEllipse(hx - r * 0.2, hy - r * 0.3, r * 1.4, r * 0.8);
+      }
+    }
   }
 
   /** Gespaltener Fels: Risse von der Leitung aus und Geröll zu beiden Seiten. */
-  private splitRock(c: AbilityCell): void {
-    const g = this.under;
+  private splitRock(g: Phaser.GameObjects.Graphics, c: AbilityCell): void {
     const rnd = cellRng(`${this.map.id}:split`, c.cell.x, c.cell.y);
     const p = center(c.cell);
     // Freigeschlagene Schotterrinne entlang der Leitung, zu den Nachbarkacheln hin offen
@@ -206,7 +261,6 @@ export class AbilityLayer {
       return null;
     }
     for (const c of trace.cells) this.hidden.add(cellKey(c.cell));
-    for (const p of trace.portals) this.hidden.add(cellKey(p.cell));
     this.draw(state);
     const actions = new Map<number, (() => void)[]>();
     const on = (index: number, action: () => void) => actions.set(index, [...(actions.get(index) ?? []), action]);
@@ -259,8 +313,8 @@ export class AbilityLayer {
   }
 
   /**
-   * Maulwurf: Erde spritzt am Eingang, ein Buckel wandert von Kachel zu Kachel durch den Tunnel,
-   * am Ausgang ploppt der Hügel auf. `step` ist die ungefähre Zeit, die die Leitung pro Kachel braucht.
+   * Maulwurf: Erde spritzt am Eingang, ein Buckel wandert von Kachel zu Kachel durch den Graben,
+   * am Ausgang spritzt wieder Erde. `step` ist die ungefähre Zeit, die die Leitung pro Kachel braucht.
    */
   private dig(trace: AbilityTrace, step: number, on: (index: number, action: () => void) => void): void {
     const route = trace.route.cells;
@@ -280,7 +334,7 @@ export class AbilityLayer {
       const edge = mid(p.cell, p.toward);
       const entering = tunnel.has(p.index + 1);
       on(p.index, () => {
-        this.popHill(p.cell, edge);
+        this.popHill(edge);
         if (entering) moveBump(edge, center(p.toward));
         else {
           bump?.destroy();
@@ -304,15 +358,9 @@ export class AbilityLayer {
     }
   }
 
-  private popHill(cell: Cell, p: Pt): void {
-    this.reveal(cell);
+  /** Erde spritzt am Grabeneingang bzw. -ausgang. */
+  private popHill(p: Pt): void {
     this.burst(p.x, p.y, 'fx-dirt', [0xffffff], 14, 260);
-    const hill = this.sprites.get(`hill:${cellKey(cell)}`);
-    if (!hill) return;
-    const sx = hill.scaleX;
-    const sy = hill.scaleY;
-    hill.setScale(sx * 0.2, sy * 0.2);
-    this.scene.tweens.add({ targets: hill, scaleX: sx, scaleY: sy, duration: 260, ease: 'Back.easeOut' });
   }
 
   // ------------------------------------------------------------ Spürnase

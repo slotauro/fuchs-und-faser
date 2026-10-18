@@ -2,6 +2,7 @@ import {
   ANIMALS,
   TILE_INFO,
   formatPoints,
+  type AnimalId,
   type GameState,
   type TileType,
 } from '@fuf/shared';
@@ -32,6 +33,14 @@ const LOSS_TEXT: Record<string, string> = {
   time: 'Die Zeit ist abgelaufen.',
   budget: 'Das Budget reicht für keinen weiteren Anschluss.',
   forfeit: 'Der Auftrag wurde abgebrochen.',
+};
+
+/** Hindernis, vor dem Maulwurf und Biber ihre Fähigkeit einsetzen. */
+const OBSTACLE: Record<AnimalId, { name: string; dative: string }> = {
+  mole: { name: 'Wurzelzone', dative: 'einer Wurzelzone' },
+  beaver: { name: 'Querungsstelle', dative: 'einer Querungsstelle am Wasser' },
+  badger: { name: 'Felsen', dative: 'Felsen' },
+  fox: { name: '', dative: '' },
 };
 
 const tiles = (n: number) => `${n} ${n === 1 ? 'Kachel' : 'Kacheln'}`;
@@ -155,22 +164,36 @@ export function mountGameScreen(controller: GameController, options: GameScreenO
     ($('#btn-undo') as HTMLButtonElement).disabled = !playing || planner.cells.length === 0;
     ($('#btn-clear') as HTMLButtonElement).disabled = !playing || planner.cells.length === 0;
 
-    abilityBtn.disabled = !playing || player.abilityUsed || state.pausedAt !== null;
+    // Maulwurf und Biber nur direkt vor ihrem Hindernis, der Dachs wirkt ganz ohne Knopf
+    const canArm = planner.canArm;
+    abilityBtn.disabled =
+      !playing ||
+      player.abilityUsed ||
+      state.pausedAt !== null ||
+      animal.kind === 'passive' ||
+      (animal.kind === 'route' && !planner.abilityArmed && !canArm);
     abilityBtn.classList.toggle('armed', planner.abilityArmed);
+    abilityBtn.classList.toggle('ready', canArm && !planner.abilityArmed);
     $('#ability-label').textContent = player.abilityUsed
       ? `${animal.abilityName} (verbraucht)`
       : animal.kind === 'instant'
         ? `${animal.abilityName} einsetzen`
-        : planner.abilityArmed
-          ? `${animal.abilityName}: scharf ✓`
-          : `${animal.abilityName} scharf schalten`;
+        : animal.kind === 'passive'
+          ? `${animal.abilityName} (automatisch)`
+          : planner.abilityArmed
+            ? `${animal.abilityName}: scharf ✓`
+            : `${animal.abilityName} scharf schalten`;
     abilityBtn.setAttribute('aria-pressed', String(planner.abilityArmed));
     const status = $('#ability-status');
     status.textContent = player.abilityUsed
       ? 'Bereits eingesetzt'
       : planner.abilityArmed
-        ? 'Scharf – wirkt bei der nächsten passenden Route'
-        : 'Verfügbar · 1× pro Runde';
+        ? 'Scharf – wirkt in dieser Planung'
+        : animal.kind === 'passive'
+          ? 'Wirkt automatisch auf Felsen · 1× pro Runde'
+          : animal.kind === 'route'
+            ? `Direkt vor ${OBSTACLE[animal.id].dative} einsetzbar · 1× pro Runde`
+            : 'Verfügbar · 1× pro Runde';
     status.className = `chip ${player.abilityUsed ? 'used' : planner.abilityArmed ? 'armed' : 'ok'}`;
 
     const info = $('#plan-info');
@@ -185,7 +208,9 @@ export function mountGameScreen(controller: GameController, options: GameScreenO
         ? 'Plane die nächste Route – sie kann an jeder gebauten Leitung abzweigen.'
         : 'Lauf mit den Pfeiltasten los (oder klicke auf ein Feld neben dem Netzverteiler) – dein Tier legt die Leitung.';
     } else if (error) {
-      msg.textContent = `⚠ ${error.message}`;
+      msg.textContent = `⚠ ${error.message}${canArm && !planner.abilityArmed ? ` – Taste F: ${animal.abilityName}` : ''}`;
+    } else if (canArm && !planner.abilityArmed) {
+      msg.textContent = `${OBSTACLE[animal.id].name} voraus – drücke F für ${animal.abilityName}.`;
     } else if (analysis.complete) {
       const b = map.buildings.find((x) => x.id === analysis.buildingId);
       msg.textContent = `✓ Route zu ${b?.name} kostet ${formatPoints(analysis.cost)} Punkte${analysis.abilityApplied ? ` (mit ${animal.abilityName})` : ''}. Jetzt bauen!`;
@@ -266,8 +291,10 @@ export function mountGameScreen(controller: GameController, options: GameScreenO
       const result = await controller.useScout();
       if (result.ok) toast('Spürnase: Hinweis und verborgene Leerrohre sind sichtbar.', 'ok');
       else if (result.error) toast(result.error.message, 'error');
-    } else {
-      planner.setArmed(!planner.abilityArmed);
+    } else if (animal.kind === 'passive') {
+      toast(`${animal.abilityName} wirkt automatisch, sobald deine Route über Felsen führt.`);
+    } else if (!planner.setArmed(!planner.abilityArmed)) {
+      toast(`${animal.abilityName} geht nur direkt vor ${OBSTACLE[animal.id].dative}.`);
     }
   }
 

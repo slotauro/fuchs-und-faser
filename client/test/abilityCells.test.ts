@@ -49,7 +49,7 @@ describe('Spuren der Fähigkeiten', () => {
   });
 
   it('ohne Fähigkeit gibt es keine Spur', () => {
-    expect(build('badger', route('2,4 2,5 2,6 3,6 4,6 5,6 6,6 7,6 8,6 9,6 9,5 9,4 10,4 11,4 12,4 13,4 14,4'), false)).toEqual([]);
+    expect(build('fox', route('2,4 2,5 2,6 3,6 4,6 5,6 6,6 7,6 8,6 9,6 9,5 9,4 10,4 11,4 12,4 13,4 14,4'), false)).toEqual([]);
   });
 });
 

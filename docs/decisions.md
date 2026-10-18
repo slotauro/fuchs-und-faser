@@ -23,18 +23,20 @@ Jede Fähigkeit gilt einmal pro Runde und Spieler.
 | Tier | Umsetzung |
 | --- | --- |
 | Fuchs – Spürnase | Sofort: deckt verborgene Leerrohre auf und zeigt per Dijkstra die günstigste Route zum nächsten Gebäude als Pfotenspur. |
-| Maulwurf – Tunnel | Für die nächste Route: eine zusammenhängende Wurzelzone mit bis zu 3 Kacheln, 1 Punkt pro Kachel. |
-| Biber – Übergang | Für die nächste Route: markierte Querungsstellen im Wasser, 1 Punkt pro Kachel. |
-| Dachs – Hart im Nehmen | Für die nächste Route: Felsen kosten 0,5 statt 3 Punkte. |
+| Maulwurf – Tunnel | Direkt vor einer Wurzelzone scharf schalten: eine zusammenhängende Wurzelzone mit bis zu 3 Kacheln, 1 Punkt pro Kachel. |
+| Biber – Übergang | Direkt vor einer Querungsstelle scharf schalten: markierte Querungsstellen im Wasser, 1 Punkt pro Kachel. |
+| Dachs – Hart im Nehmen | Passiv, ohne Aktivierung: in der ersten gebauten Route über Felsen kosten Felsen 0,5 statt 3 Punkte. |
 
-Bau-Fähigkeiten werden „scharf geschaltet“ und **nur verbraucht, wenn sie in einer erfolgreich gebauten Route tatsächlich wirken**. Ein abgelehnter Bau verbraucht nichts (Szenario C).
+Maulwurf und Biber schalten ihre Fähigkeit nur scharf, wenn die Figur direkt vor (oder auf) dem passenden Hindernis steht (`canArmAt` in `abilitySystem.ts`; Hindernisse hinter der Figur zählen nicht). Davor ist der Knopf gesperrt. Steht die Figur davor, leuchtet er, und die Planungszeile zeigt „Wurzelzone voraus – drücke F …“. Läuft die Figur wieder weg und enthält die Planung kein passendes Hindernis, erlischt die Fähigkeit von selbst. Das ist eine Bedienhilfe im Client. Der Reducer prüft nur, dass die Fähigkeit ausschließlich auf ihren Kacheln wirkt.
 
-**Darstellung:** Jede Fähigkeit hat eine eigene Animation. Bau-Fähigkeiten hinterlassen außerdem eine bleibende Spur, die aus dem Spielstand gezeichnet wird. Sie ist deshalb nach dem Neuladen und für Mitspieler sichtbar.
+Der Dachs hat keinen Knopf mehr, weil die Fähigkeit ohnehin nur auf Felsen wirkt. Welche Fähigkeit für eine Route gilt, entscheidet `routeAbility(player, armed)` für Reducer und Planung gemeinsam. Alle Bau-Fähigkeiten werden **nur verbraucht, wenn sie in einer erfolgreich gebauten Route tatsächlich wirken**. Ein abgelehnter Bau verbraucht nichts (Szenario C).
+
+**Darstellung:** Schon während der Planung verwandeln sich die Kacheln, auf denen die Fähigkeit wirken wird: Wurzeln werden zum Graben, die Querungsstelle bekommt eine Brücke, Fels wird gespalten. So ist sofort klar, warum dort gebaut werden kann. Die Vorschau ist leicht durchscheinend und endet an der ersten ungültigen Kachel. Jede Fähigkeit hat eine eigene Animation. Bau-Fähigkeiten hinterlassen außerdem eine bleibende Spur, die aus dem Spielstand gezeichnet wird. Sie ist deshalb nach dem Neuladen und für Mitspieler sichtbar.
 
 | Tier | Animation | Bleibende Spur |
 | --- | --- | --- |
 | Fuchs | Schnüffeln mit Funken, goldene Suchwelle, aufgedeckte Leerrohre leuchten auf, Pfotenspur erscheint Abdruck für Abdruck | – (Leerrohre bleiben aufgedeckt) |
-| Maulwurf | Taucht ab und wieder auf; Erde spritzt am Eingang, ein Erdbuckel wandert durch den Tunnel, der Hügel am Ausgang ploppt auf | Erdabdeckung über der Leitung, darauf die Leitung gestrichelt (unterirdisch), Maulwurfshügel an Ein- und Ausgang |
+| Maulwurf | Taucht ab und wieder auf; Erde spritzt am Eingang, ein Erdbuckel wandert durch den Graben, am Ausgang spritzt wieder Erde | Graben: helle, ausgehobene Erde deckt die Wurzelkachel ganz ab, in der Mitte ein offener Graben mit der Leitung, an den Wänden gekappte Wurzeln, Erdhäufchen in den Ecken |
 | Biber | Hämmern; Planken fallen Kachel für Kachel ein, Wasser spritzt | Holzbrücke unter der Leitung |
 | Dachs | Ausholen und Zuschlagen; pro Felskachel Funkenblitz, Splitter und kurzes Beben | Freigeschlagene Schotterrinne mit Rissen und Geröll |
 
@@ -67,5 +69,5 @@ Die Effekte hängen am Fortschritt der Leitungsanimation (`FiberLayer.animate` m
   - Die geplante Route ist eine transparente, gestrichelte Vorschau.
   - Ungültige Abschnitte erscheinen rot gestrichelt mit einem ✕-Symbol, das über der Figur liegt.
   - Angeschlossene Gebäude bekommen einen grünen Anschlusskasten mit Häkchen.
-- **Figuren:** Die eigene Figur hat einen cremefarbenen Ring mit oranger Kontur, Mitspieler einen Ring in Tierfarbe und ein Namensschild. Eine scharf geschaltete Fähigkeit zeigt eine pulsierende Aura und ein Abzeichen. Die Figur schaut in Laufrichtung: nach unten von vorne, nach oben von hinten, nach links und rechts im Profil (links ist die gespiegelte Seitenansicht). Im Stand behält sie die letzte Laufrichtung. Beim Laufen wechseln sich zwei Schritt-Posen ab; mit „Animationen reduzieren“ dreht sich die Figur nur, ohne Schrittwechsel.
+- **Figuren:** Die eigene Figur hat einen cremefarbenen Ring mit oranger Kontur, Mitspieler einen Ring in Tierfarbe und ein Namensschild. Eine scharf geschaltete Fähigkeit (Maulwurf, Biber) zeigt eine pulsierende Aura und ein Abzeichen. Die Figur schaut in Laufrichtung: nach unten von vorne, nach oben von hinten, nach links und rechts im Profil (links ist die gespiegelte Seitenansicht). Im Stand behält sie die letzte Laufrichtung. Beim Laufen wechseln sich zwei Schritt-Posen ab; mit „Animationen reduzieren“ dreht sich die Figur nur, ohne Schrittwechsel.
 - Die Option „Animationen reduzieren“ schaltet Bau-, Lauf-, Idle- und Anschlussanimationen sowie den Lichtimpuls ab.

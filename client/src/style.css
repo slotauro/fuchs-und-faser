@@ -226,6 +226,8 @@ input.code { font-family: ui-monospace, Menlo, monospace; text-transform: upperc
   box-shadow: 0 2px 0 var(--ability-deep), 0 0 0 4px var(--ability-soft), 0 6px 18px var(--ability-soft);
   animation: glow 1.4s ease-in-out infinite;
 }
+/* Maulwurf/Biber direkt vor ihrem Hindernis: Knopf lädt zum Einsetzen ein */
+.ability-btn.ready { border-color: var(--ability); color: var(--ability-deep); animation: glow 1.4s ease-in-out infinite; }
 .ability-btn.armed kbd { background: rgba(255, 255, 255, 0.2); border-color: rgba(255, 255, 255, 0.35); }
 @keyframes glow { 50% { box-shadow: 0 2px 0 var(--ability-deep), 0 0 0 7px var(--ability-soft), 0 6px 22px var(--ability-soft); } }
 .ability-fox { --ability: #ef7d2d; --ability-deep: #b9531a; --ability-soft: rgba(239, 125, 45, 0.28); }
