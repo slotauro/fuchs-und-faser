@@ -1,0 +1,20 @@
+{
+  "name": "@fuf/client",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -p . && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@fontsource-variable/nunito": "^5.2.6",
+    "@fuf/shared": "*",
+    "phaser": "3.90.0",
+    "socket.io-client": "4.8.4"
+  },
+  "devDependencies": {
+    "vite": "5.4.21"
+  }
+}
