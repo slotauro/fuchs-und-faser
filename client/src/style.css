@@ -113,6 +113,13 @@ kbd {
 .menu .btn { width: 100%; font-size: 1.08rem; min-height: 50px; }
 .menu .btn.primary { font-size: 1.2rem; min-height: 56px; }
 .footnote { text-align: center; font-size: 0.9rem; }
+.legal-links { display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 18px; color: var(--ink-soft); font-size: 0.85rem; }
+.link {
+  background: none; border: none; padding: 4px; font: inherit; color: var(--ink-soft);
+  text-decoration: underline; text-underline-offset: 3px; cursor: pointer;
+}
+.link:hover { color: var(--forest); }
+.link:focus-visible { outline: 3px solid var(--fiber); outline-offset: 2px; border-radius: 4px; }
 
 .screen-head { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
 .screen-head h2 { margin: 0; flex: 1; }
@@ -287,6 +294,10 @@ input.code { font-family: ui-monospace, Menlo, monospace; text-transform: upperc
   animation: rise 0.22s ease;
 }
 .dialog h2 { margin-bottom: 6px; }
+.legal h3 { font-size: 1rem; margin: 14px 0 4px; color: var(--forest); }
+.legal p { margin: 0 0 8px; line-height: 1.5; }
+.legal a { color: var(--forest); font-weight: 750; text-underline-offset: 3px; }
+.legal .placeholder { color: var(--bad); font-weight: 750; }
 @keyframes rise { from { transform: translateY(12px) scale(0.98); opacity: 0; } }
 .result-title { font-size: 1.8rem; font-weight: 900; letter-spacing: -0.02em; }
 .result-title.won { color: var(--forest); }

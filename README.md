@@ -69,4 +69,4 @@ Client und Server rufen denselben Reducer `applyAction` aus `shared/src/gameRedu
 - Touch funktioniert (Tippen und Ziehen), ist aber nicht gezielt optimiert.
 - Kein Sound, keine Ranglisten, keine Konten (bewusst nicht im MVP).
 - Das Client-Bundle ist wegen Phaser etwa 1,6 MB groß (390 kB gzip). Alle Grafiken sind prozedural (Canvas/SVG aus Code), es werden keine Bilddateien geladen. Details: `docs/assets.md`.
-- Hosting: Jeder Node-Host mit WebSocket-Unterstützung (z. B. Render, Fly.io) genügt: `npm install && npm run build`, Startbefehl `npm start`. Ein Deployment ist noch nicht eingerichtet.
+- Hosting: Jeder Node-Host mit WebSocket-Unterstützung genügt: `npm install && npm run build`, Startbefehl `npm start`. Für Render liegt ein Blueprint in `render.yaml` (kostenloser Tarif, eine Instanz). Im Render-Dashboard „New → Blueprint“ wählen und dieses Repo verbinden. Der kostenlose Dienst schläft nach etwa 15 Minuten ohne Besucher ein, der erste Aufruf danach dauert bis zu einer Minute.
