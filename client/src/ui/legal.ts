@@ -10,8 +10,8 @@ const OPERATOR = {
   city: "40625 Düsseldorf",
   // Die E-Mail steht in zwei Teilen (vor und nach dem @), damit sie nirgends am Stück im Bundle
   // auftaucht. Zusammengesetzt wird sie erst, wenn ein Dialog geöffnet wird.
-  emailUser: "s.lotauro",
-  emailDomain: "outlook.com",
+  emailUser: "fuchs-und-faser",
+  emailDomain: "outlook.de",
 };
 
 function field(value: string, placeholder: string): string {
@@ -24,7 +24,9 @@ function email(): string {
   if (!OPERATOR.emailUser || !OPERATOR.emailDomain) {
     return field("", "E-Mail-Adresse");
   }
-  const address = escapeHtml([OPERATOR.emailUser, OPERATOR.emailDomain].join("@"));
+  const address = escapeHtml(
+    [OPERATOR.emailUser, OPERATOR.emailDomain].join("@"),
+  );
   return `<a href="mailto:${address}">${address}</a>`;
 }
 
