@@ -18,7 +18,7 @@ Wo das PRD Spielraum ließ, wurde die einfachste spielbare Lösung gewählt. Die
 
 ## Fähigkeiten
 
-Jede Fähigkeit gilt einmal pro Runde und Spieler.
+Jede Fähigkeit gilt einmal pro Runde und Spieler. Ist die Bau-Fähigkeit verbraucht, nennt die Fehlermeldung an der gesperrten Kachel genau das („… ist in dieser Runde schon verbraucht, hier hilft nur ein Umweg“) statt der allgemeinen Sperrmeldung, damit ein Biber vor der zweiten Querungsstelle nicht „nur der Biber kann hier …“ liest (`spentAbility` in `analyzeRoute`).
 
 | Tier | Umsetzung |
 | --- | --- |

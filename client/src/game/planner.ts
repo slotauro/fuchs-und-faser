@@ -86,6 +86,7 @@ export class Planner {
     return analyzeRoute(this.controller.map, this.controller.getState(), this.cells, {
       activeAbility: this.activeAbility,
       partial: true,
+      spentAbility: this.player?.abilityUsed ? this.player.animal : null,
     });
   }
 

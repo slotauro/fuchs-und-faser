@@ -116,6 +116,7 @@ export function applyAction(state: GameState, action: GameAction, now: number): 
       }
       const analysis = analyzeRoute(map, state, action.cells, {
         activeAbility: routeAbility(player, action.useAbility),
+        spentAbility: player.abilityUsed ? player.animal : null,
       });
       if (analysis.error) return { ok: false, error: analysis.error };
 
