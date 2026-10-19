@@ -65,10 +65,19 @@ describe('Szenario C – Spezialfähigkeit', () => {
     expect(!r.ok && r.error.code).toBe('ABILITY_USED');
   });
 
-  it('der Dachs macht Felsen günstiger', () => {
+  it('der Dachs macht Felsen günstiger – ganz ohne Aktivierung', () => {
     const { state } = solo('erstes-haus', 'badger');
-    const r = build(state, route('2,3 2,4 3,4 4,4 5,4 6,4 7,4 8,4 9,4 10,4 11,4'), { useAbility: true });
+    const r = build(state, route('2,3 2,4 3,4 4,4 5,4 6,4 7,4 8,4 9,4 10,4 11,4'));
     expect(r.ok && r.state.spent).toBe(24);
+    expect(r.ok && r.state.players[0].abilityUsed).toBe(true);
+    expect(r.ok && r.events[0]).toMatchObject({ type: 'abilityUsed', animal: 'badger' });
+  });
+
+  it('die passive Fähigkeit des Dachses wirkt nur einmal und wird nicht abgelehnt', () => {
+    const { state } = solo('erstes-haus', 'badger');
+    const used = { ...state, players: state.players.map((p) => ({ ...p, abilityUsed: true })) };
+    const r = build(used, route('2,3 2,4 3,4 4,4 5,4 6,4 7,4 8,4 9,4 10,4 11,4'), { useAbility: true });
+    expect(r.ok && r.state.spent).toBeGreaterThan(24);
   });
 
   it('der Biber überbrückt die Querungsstelle', () => {

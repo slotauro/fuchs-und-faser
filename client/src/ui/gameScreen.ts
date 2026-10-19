@@ -2,12 +2,13 @@ import {
   ANIMALS,
   TILE_INFO,
   formatPoints,
+  type AnimalId,
   type GameState,
   type TileType,
 } from '@fuf/shared';
 import type Phaser from 'phaser';
 import type { GameController } from '../controller/GameController';
-import { createBoard } from '../game/BoardScene';
+import { createBoard, finaleDelay } from '../game/BoardScene';
 import { Planner } from '../game/planner';
 import { renderTileSwatch } from '../game/art/terrain';
 import { distributorSvg, socketSvg, svgDataUrl } from '../game/art/svgAssets';
@@ -32,6 +33,14 @@ const LOSS_TEXT: Record<string, string> = {
   time: 'Die Zeit ist abgelaufen.',
   budget: 'Das Budget reicht für keinen weiteren Anschluss.',
   forfeit: 'Der Auftrag wurde abgebrochen.',
+};
+
+/** Hindernis, vor dem Maulwurf und Biber ihre Fähigkeit einsetzen. */
+const OBSTACLE: Record<AnimalId, { name: string; dative: string }> = {
+  mole: { name: 'Wurzelzone', dative: 'einer Wurzelzone' },
+  beaver: { name: 'Querungsstelle', dative: 'einer Querungsstelle am Wasser' },
+  badger: { name: 'Felsen', dative: 'Felsen' },
+  fox: { name: '', dative: '' },
 };
 
 const tiles = (n: number) => `${n} ${n === 1 ? 'Kachel' : 'Kacheln'}`;
@@ -61,6 +70,8 @@ export function mountGameScreen(controller: GameController, options: GameScreenO
   const animal = ANIMALS[me().animal];
   let building = false;
   let resultShown = false;
+  /** Ergebniskarte wartet, bis die letzte Verlegung zu sehen war */
+  let resultTimer: number | null = null;
 
   resetScroll();
   const stat = (id: string, icon: string, label: string, testid: string, extra = '') =>
@@ -79,6 +90,7 @@ export function mountGameScreen(controller: GameController, options: GameScreenO
         <div class="board-wrap"><div id="board" data-testid="board" data-cols="${map.width}" data-rows="${map.height}"></div></div>
         <div class="dock">
           <div class="plan-info" id="plan-info" role="status" aria-live="polite"><span class="plan-dot" aria-hidden="true"></span><span class="msg" data-testid="plan-msg"></span>
+            <button class="btn primary" id="btn-result" data-testid="result-show" hidden>${ICONS.trophy}<span>Ergebnis anzeigen</span></button>
             <button class="btn ghost" id="btn-pause">${controller.canPause ? ICONS.pause : ICONS.exit}<span>${controller.canPause ? 'Pause' : 'Verlassen'}</span></button></div>
           <div class="actions">
             <button class="btn primary" id="btn-build" data-testid="build" title="Taste B oder Enter">${ICONS.build}<span>Route bauen</span><kbd>B</kbd></button>
@@ -155,22 +167,36 @@ export function mountGameScreen(controller: GameController, options: GameScreenO
     ($('#btn-undo') as HTMLButtonElement).disabled = !playing || planner.cells.length === 0;
     ($('#btn-clear') as HTMLButtonElement).disabled = !playing || planner.cells.length === 0;
 
-    abilityBtn.disabled = !playing || player.abilityUsed || state.pausedAt !== null;
+    // Maulwurf und Biber nur direkt vor ihrem Hindernis, der Dachs wirkt ganz ohne Knopf
+    const canArm = planner.canArm;
+    abilityBtn.disabled =
+      !playing ||
+      player.abilityUsed ||
+      state.pausedAt !== null ||
+      animal.kind === 'passive' ||
+      (animal.kind === 'route' && !planner.abilityArmed && !canArm);
     abilityBtn.classList.toggle('armed', planner.abilityArmed);
+    abilityBtn.classList.toggle('ready', canArm && !planner.abilityArmed);
     $('#ability-label').textContent = player.abilityUsed
       ? `${animal.abilityName} (verbraucht)`
       : animal.kind === 'instant'
         ? `${animal.abilityName} einsetzen`
-        : planner.abilityArmed
-          ? `${animal.abilityName}: scharf ✓`
-          : `${animal.abilityName} scharf schalten`;
+        : animal.kind === 'passive'
+          ? `${animal.abilityName} (automatisch)`
+          : planner.abilityArmed
+            ? `${animal.abilityName}: scharf ✓`
+            : `${animal.abilityName} scharf schalten`;
     abilityBtn.setAttribute('aria-pressed', String(planner.abilityArmed));
     const status = $('#ability-status');
     status.textContent = player.abilityUsed
       ? 'Bereits eingesetzt'
       : planner.abilityArmed
-        ? 'Scharf – wirkt bei der nächsten passenden Route'
-        : 'Verfügbar · 1× pro Runde';
+        ? 'Scharf – wirkt in dieser Planung'
+        : animal.kind === 'passive'
+          ? 'Wirkt automatisch auf Felsen · 1× pro Runde'
+          : animal.kind === 'route'
+            ? `Direkt vor ${OBSTACLE[animal.id].dative} einsetzbar · 1× pro Runde`
+            : 'Verfügbar · 1× pro Runde';
     status.className = `chip ${player.abilityUsed ? 'used' : planner.abilityArmed ? 'armed' : 'ok'}`;
 
     const info = $('#plan-info');
@@ -178,14 +204,19 @@ export function mountGameScreen(controller: GameController, options: GameScreenO
     const error = planner.rejected ?? analysis.error;
     info.classList.toggle('error', !!error && planner.cells.length > 0);
     info.classList.toggle('ready', !error && analysis.complete);
-    if (!playing) msg.textContent = 'Runde beendet.';
+    // Ergebniskarte ausgeblendet: Spielfeld betrachten, Karte jederzeit wieder einblenden
+    const resultHidden = !playing && resultShown && document.getElementById('overlay')!.hidden;
+    $('#btn-result').hidden = !resultHidden;
+    if (!playing) msg.textContent = resultHidden ? 'Runde beendet – das Ergebnis kannst du jederzeit wieder einblenden (Esc).' : 'Runde beendet.';
     else if (state.pausedAt !== null) msg.textContent = 'Pausiert.';
     else if (planner.cells.length === 0) {
       msg.textContent = state.routes.length
         ? 'Plane die nächste Route – sie kann an jeder gebauten Leitung abzweigen.'
         : 'Lauf mit den Pfeiltasten los (oder klicke auf ein Feld neben dem Netzverteiler) – dein Tier legt die Leitung.';
     } else if (error) {
-      msg.textContent = `⚠ ${error.message}`;
+      msg.textContent = `⚠ ${error.message}${canArm && !planner.abilityArmed ? ` – Taste F: ${animal.abilityName}` : ''}`;
+    } else if (canArm && !planner.abilityArmed) {
+      msg.textContent = `${OBSTACLE[animal.id].name} voraus – drücke F für ${animal.abilityName}.`;
     } else if (analysis.complete) {
       const b = map.buildings.find((x) => x.id === analysis.buildingId);
       msg.textContent = `✓ Route zu ${b?.name} kostet ${formatPoints(analysis.cost)} Punkte${analysis.abilityApplied ? ` (mit ${animal.abilityName})` : ''}. Jetzt bauen!`;
@@ -203,7 +234,7 @@ export function mountGameScreen(controller: GameController, options: GameScreenO
         .join('');
     }
     renderTime(state);
-    if (state.status !== 'playing' && !resultShown) showResult(state);
+    if (state.status !== 'playing' && !resultShown && resultTimer === null) showResult(state);
   }
 
   function renderTime(state: GameState): void {
@@ -232,6 +263,11 @@ export function mountGameScreen(controller: GameController, options: GameScreenO
         <div class="row" id="result-actions"></div>
       </div>`);
     const actions = $('#result-actions', el);
+    const view = document.createElement('button');
+    view.className = 'btn ghost';
+    view.dataset.testid = 'result-hide';
+    view.innerHTML = `${ICONS.eye}<span>Spielfeld ansehen</span>`;
+    view.onclick = hideResult;
     for (const action of options.resultActions) {
       const btn = document.createElement('button');
       btn.className = `btn${action.primary ? ' primary' : ''}`;
@@ -242,7 +278,15 @@ export function mountGameScreen(controller: GameController, options: GameScreenO
       };
       actions.appendChild(btn);
     }
+    actions.appendChild(view);
     (actions.querySelector('button') as HTMLButtonElement | null)?.focus();
+    renderHud(state);
+  }
+
+  function hideResult(): void {
+    hideOverlay();
+    renderHud(controller.getState());
+    $('#btn-result').focus();
   }
 
   async function build(): Promise<void> {
@@ -266,8 +310,10 @@ export function mountGameScreen(controller: GameController, options: GameScreenO
       const result = await controller.useScout();
       if (result.ok) toast('Spürnase: Hinweis und verborgene Leerrohre sind sichtbar.', 'ok');
       else if (result.error) toast(result.error.message, 'error');
-    } else {
-      planner.setArmed(!planner.abilityArmed);
+    } else if (animal.kind === 'passive') {
+      toast(`${animal.abilityName} wirkt automatisch, sobald deine Route über Felsen führt.`);
+    } else if (!planner.setArmed(!planner.abilityArmed)) {
+      toast(`${animal.abilityName} geht nur direkt vor ${OBSTACLE[animal.id].dative}.`);
     }
   }
 
@@ -305,6 +351,7 @@ export function mountGameScreen(controller: GameController, options: GameScreenO
   $('#btn-undo').onclick = () => planner.undo();
   $('#btn-clear').onclick = () => planner.clear();
   $('#btn-pause').onclick = pauseOrLeave;
+  $('#btn-result').onclick = () => showResult(controller.getState());
 
   const ARROWS: Record<string, [number, number]> = {
     ArrowUp: [0, -1],
@@ -316,12 +363,14 @@ export function mountGameScreen(controller: GameController, options: GameScreenO
     if (e.target instanceof HTMLInputElement) return;
     const overlayOpen = !document.getElementById('overlay')!.hidden;
     if (e.key === 'Escape') {
+      const finished = controller.getState().status !== 'playing';
       if (overlayOpen) {
-        if (controller.getState().status === 'playing') {
+        if (!finished) {
           hideOverlay();
           controller.resume();
-        }
-      } else if (planner.cells.length) planner.clear();
+        } else if (resultShown) hideResult();
+      } else if (finished && resultShown) showResult(controller.getState());
+      else if (planner.cells.length) planner.clear();
       else pauseOrLeave();
       return;
     }
@@ -347,6 +396,13 @@ export function mountGameScreen(controller: GameController, options: GameScreenO
   window.addEventListener('keydown', onKey);
 
   const unsubState = controller.subscribe((state, events) => {
+    const finalRoute = state.status !== 'playing' ? events.find((e) => e.type === 'routeBuilt') : undefined;
+    if (finalRoute?.type === 'routeBuilt' && !resultShown && resultTimer === null) {
+      resultTimer = window.setTimeout(() => {
+        resultTimer = null;
+        renderHud(controller.getState());
+      }, finaleDelay(finalRoute.cells.length, options.settings.reduceMotion));
+    }
     for (const event of events) {
       if (event.type === 'buildingConnected') {
         const b = map.buildings.find((x) => x.id === event.buildingId);
@@ -365,6 +421,7 @@ export function mountGameScreen(controller: GameController, options: GameScreenO
     destroy() {
       window.removeEventListener('keydown', onKey);
       window.clearInterval(clock);
+      if (resultTimer !== null) window.clearTimeout(resultTimer);
       unsubState();
       unsubPlan();
       game.destroy(true);

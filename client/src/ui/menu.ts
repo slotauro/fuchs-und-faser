@@ -1,6 +1,7 @@
 import { ANIMALS, ANIMAL_IDS, MAPS, formatPoints, type AnimalId } from '@fuf/shared';
 import { animalSvg } from './animalArt';
 import { $, app, escapeHtml, resetScroll } from './dom';
+import { showImprint, showPrivacy } from './legal';
 import { cleanName, saveSettings, type Settings } from './settings';
 
 export interface MenuActions {
@@ -34,10 +35,17 @@ export function showMenu(actions: MenuActions): void {
       <button class="btn" data-act="animals">Tiere kennenlernen</button>
       <button class="btn" data-act="settings">Einstellungen</button>
     </nav>
-    <p class="muted footnote">Keine Anmeldung nötig. Kosten und Regeln sind spielerisch vereinfacht.</p>`;
+    <p class="muted footnote">Keine Anmeldung nötig. Kosten und Regeln sind spielerisch vereinfacht.</p>
+    <footer class="legal-links">
+      <button class="link" id="imprint" data-testid="imprint">Impressum</button>
+      <span aria-hidden="true">·</span>
+      <button class="link" id="privacy" data-testid="privacy">Datenschutz</button>
+    </footer>`;
   app.querySelectorAll<HTMLButtonElement>('[data-act]').forEach((btn) => {
     btn.onclick = () => actions[btn.dataset.act as keyof MenuActions]();
   });
+  $('#imprint').onclick = showImprint;
+  $('#privacy').onclick = showPrivacy;
 }
 
 function head(title: string, onBack: () => void): string {

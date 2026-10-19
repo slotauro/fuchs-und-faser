@@ -1,0 +1,16 @@
+# Render-Blueprint: ein Web Service für Client und Mehrspielerserver.
+# Der Server liefert client/dist mit aus, Socket.IO läuft auf demselben Port.
+services:
+  - type: web
+    name: fuchs-und-faser
+    runtime: node
+    plan: free
+    # Dev-Abhängigkeiten (TypeScript, Vite) werden für den Client-Build gebraucht.
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    # Nur eine Instanz: Räume liegen im Arbeitsspeicher des Servers.
+    numInstances: 1
+    envVars:
+      - key: NODE_VERSION
+        value: "20"

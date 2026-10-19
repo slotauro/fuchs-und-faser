@@ -7,7 +7,7 @@ export const map2: MapSource = {
     'Alte Bäume und ein Bach trennen das Haus vom Netz. Jedes Tier findet hier seinen eigenen Weg.',
   tips: [
     'Wurzelzonen und Wasser sind ohne Fähigkeit nicht bebaubar.',
-    'Schalte deine Fähigkeit vor dem Bau scharf – sie wird nur verbraucht, wenn sie wirkt.',
+    'Maulwurf und Biber setzen ihre Fähigkeit direkt vor Wurzeln bzw. Wasser ein, der Dachs braucht keine Aktivierung.',
     'Der Fuchs ahnt: Unter der Wiese im Süden liegt vielleicht ein altes Leerrohr.',
   ],
   grid: [

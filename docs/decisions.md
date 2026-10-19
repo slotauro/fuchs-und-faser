@@ -23,11 +23,24 @@ Jede Fähigkeit gilt einmal pro Runde und Spieler.
 | Tier | Umsetzung |
 | --- | --- |
 | Fuchs – Spürnase | Sofort: deckt verborgene Leerrohre auf und zeigt per Dijkstra die günstigste Route zum nächsten Gebäude als Pfotenspur. |
-| Maulwurf – Tunnel | Für die nächste Route: eine zusammenhängende Wurzelzone mit bis zu 3 Kacheln, 1 Punkt pro Kachel. |
-| Biber – Übergang | Für die nächste Route: markierte Querungsstellen im Wasser, 1 Punkt pro Kachel. |
-| Dachs – Hart im Nehmen | Für die nächste Route: Felsen kosten 0,5 statt 3 Punkte. |
+| Maulwurf – Tunnel | Direkt vor einer Wurzelzone scharf schalten: eine zusammenhängende Wurzelzone mit bis zu 3 Kacheln, 1 Punkt pro Kachel. |
+| Biber – Übergang | Direkt vor einer Querungsstelle scharf schalten: markierte Querungsstellen im Wasser, 1 Punkt pro Kachel. |
+| Dachs – Hart im Nehmen | Passiv, ohne Aktivierung: in der ersten gebauten Route über Felsen kosten Felsen 0,5 statt 3 Punkte. |
 
-Bau-Fähigkeiten werden „scharf geschaltet“ und **nur verbraucht, wenn sie in einer erfolgreich gebauten Route tatsächlich wirken**. Ein abgelehnter Bau verbraucht nichts (Szenario C).
+Maulwurf und Biber schalten ihre Fähigkeit nur scharf, wenn die Figur direkt vor (oder auf) dem passenden Hindernis steht (`canArmAt` in `abilitySystem.ts`; Hindernisse hinter der Figur zählen nicht). Davor ist der Knopf gesperrt. Steht die Figur davor, leuchtet er, und die Planungszeile zeigt „Wurzelzone voraus – drücke F …“. Läuft die Figur wieder weg und enthält die Planung kein passendes Hindernis, erlischt die Fähigkeit von selbst. Das ist eine Bedienhilfe im Client. Der Reducer prüft nur, dass die Fähigkeit ausschließlich auf ihren Kacheln wirkt.
+
+Der Dachs hat keinen Knopf mehr, weil die Fähigkeit ohnehin nur auf Felsen wirkt. Welche Fähigkeit für eine Route gilt, entscheidet `routeAbility(player, armed)` für Reducer und Planung gemeinsam. Alle Bau-Fähigkeiten werden **nur verbraucht, wenn sie in einer erfolgreich gebauten Route tatsächlich wirken**. Ein abgelehnter Bau verbraucht nichts (Szenario C).
+
+**Darstellung:** Schon während der Planung verwandeln sich die Kacheln, auf denen die Fähigkeit wirken wird: Wurzeln werden zum Graben, die Querungsstelle bekommt eine Brücke, Fels wird gespalten. So ist sofort klar, warum dort gebaut werden kann. Die Vorschau ist leicht durchscheinend und endet an der ersten ungültigen Kachel. Jede Fähigkeit hat eine eigene Animation. Bau-Fähigkeiten hinterlassen außerdem eine bleibende Spur, die aus dem Spielstand gezeichnet wird. Sie ist deshalb nach dem Neuladen und für Mitspieler sichtbar.
+
+| Tier | Animation | Bleibende Spur |
+| --- | --- | --- |
+| Fuchs | Schnüffeln mit Funken, goldene Suchwelle, aufgedeckte Leerrohre leuchten auf, Pfotenspur erscheint Abdruck für Abdruck | – (Leerrohre bleiben aufgedeckt) |
+| Maulwurf | Taucht ab und wieder auf; Erde spritzt am Eingang, ein Erdbuckel wandert durch den Graben, am Ausgang spritzt wieder Erde | Graben: helle, ausgehobene Erde deckt die Wurzelkachel ganz ab, in der Mitte ein offener Graben mit der Leitung, an den Wänden gekappte Wurzeln, Erdhäufchen in den Ecken |
+| Biber | Hämmern; Planken fallen Kachel für Kachel ein, Wasser spritzt | Holzbrücke unter der Leitung |
+| Dachs | Ausholen und Zuschlagen; pro Felskachel Funkenblitz, Splitter und kurzes Beben | Freigeschlagene Schotterrinne mit Rissen und Geröll |
+
+Die Effekte hängen am Fortschritt der Leitungsanimation (`FiberLayer.animate` meldet jede erreichte Kachel), nicht an eigenen Timern. So bleiben sie auch unter Last synchron zur Leitungsspitze. Mit „Animationen reduzieren“ entfallen alle Animationen, die Spuren erscheinen sofort.
 
 ## Rundenende und Wertung
 
@@ -35,6 +48,18 @@ Bau-Fähigkeiten werden „scharf geschaltet“ und **nur verbraucht, wenn sie i
 - Jede Karte hat ein Zeitlimit; im Singleplayer kann pausiert werden, im Multiplayer nicht.
 - Score: 50 × Anteil angeschlossener Gebäude + bis zu 30 für Kosteneffizienz (Referenzkosten der Karte / verbaute Kosten) + bis zu 20 für Restzeit. Effizienz und Zeit zählen nur bei Erfolg.
 - Sterne: 1 bei Erfolg, 2 bzw. 3 bei Kosten unter der kartenspezifischen Schwelle. Referenz- und Schwellenwerte stehen in den Kartendateien; `shared/test/maps.test.ts` prüft, dass jede Karte ohne Fähigkeiten im Budget lösbar ist und mehr als eine sinnvolle Route bietet.
+
+## Karten
+
+| Nr. | Karte | Gebäude | Schwerpunkt |
+| --- | --- | --- | --- |
+| 1 | Das erste Haus | 1 | Einstieg: Felsen oder Umweg |
+| 2 | Die Wurzelallee | 1 | Jedes Tier hat einen eigenen Weg |
+| 3 | Die kleine Tierstadt | 3 | Verzweigtes Netz, Straße, Leerrohrtrasse; Standardkarte für neue Mehrspielerräume |
+| 4 | Am Mühlbach | 3 | Ein Bach teilt die Karte. Ohne Brücke geht es nur unten herum. Wurzelband vor der Mühle, verborgenes Leerrohr am Ufer |
+| 5 | Das Felsendorf | 4 | Straße mit zwei günstigen Lücken, das Trafohaus liegt hinter einer Fremdleitung und ist nur von unten erreichbar, viel Fels, verborgene Leerrohre im Süden |
+
+Budget und Referenzkosten der neuen Karten 4 und 5 sind aus dem gierigen Anschließen ohne Fähigkeiten abgeleitet (der Algorithmus aus `maps.test.ts`): Referenz und 2 Sterne liegen genau auf diesen Kosten, das Budget hat rund 18 % Puffer, und 3 Sterne verlangen etwa 10 % Ersparnis durch Fähigkeiten oder ein klügeres Netz.
 
 ## Multiplayer
 
@@ -56,5 +81,7 @@ Bau-Fähigkeiten werden „scharf geschaltet“ und **nur verbraucht, wenn sie i
   - Die geplante Route ist eine transparente, gestrichelte Vorschau.
   - Ungültige Abschnitte erscheinen rot gestrichelt mit einem ✕-Symbol, das über der Figur liegt.
   - Angeschlossene Gebäude bekommen einen grünen Anschlusskasten mit Häkchen.
-- **Figuren:** Die eigene Figur hat einen cremefarbenen Ring mit oranger Kontur, Mitspieler einen Ring in Tierfarbe und ein Namensschild. Eine scharf geschaltete Fähigkeit zeigt eine pulsierende Aura und ein Abzeichen.
+- **Rundenende:** Beendet eine Route die Runde, erscheint die Ergebniskarte erst, wenn die Verlegung vollständig zu sehen war: zuerst die Bauanimation, dann leuchtet das ganze Netz bei einem Sieg zweimal auf, danach folgt eine kurze Pause (zusammen etwa 3 s, `finaleDelay` in `BoardScene.ts`). Mit „Animationen reduzieren“ entfällt das Aufleuchten, die fertige Leitung bleibt aber 1,2 s stehen. Endet die Runde durch Zeitablauf oder Aufgeben, erscheint die Karte sofort. Mit „Spielfeld ansehen“ (oder `Esc`) lässt sich die Ergebniskarte ausblenden, um das fertige Netz zu betrachten. „Ergebnis anzeigen“ in der Planungszeile (oder wieder `Esc`) blendet sie beliebig oft erneut ein.
+- **Figuren:** Die eigene Figur hat einen cremefarbenen Ring mit oranger Kontur, Mitspieler einen Ring in Tierfarbe und ein Namensschild. Eine scharf geschaltete Fähigkeit (Maulwurf, Biber) zeigt eine pulsierende Aura und ein Abzeichen. Die Figur schaut in Laufrichtung: nach unten von vorne, nach oben von hinten, nach links und rechts im Profil (links ist die gespiegelte Seitenansicht). Im Stand behält sie die letzte Laufrichtung. Beim Laufen wechseln sich zwei Schritt-Posen ab; mit „Animationen reduzieren“ dreht sich die Figur nur, ohne Schrittwechsel.
 - Die Option „Animationen reduzieren“ schaltet Bau-, Lauf-, Idle- und Anschlussanimationen sowie den Lichtimpuls ab.
+- **Impressum und Datenschutz:** Das Hauptmenü hat eine Fußzeile mit zwei Links, die je einen Dialog öffnen (`client/src/ui/legal.ts`). Die Betreiberangaben stehen dort in `OPERATOR`; leere Felder erscheinen als rote Platzhalter, damit sie vor der Veröffentlichung auffallen. Die E-Mail steht in zwei Teilen (`emailUser`, `emailDomain`) und wird erst beim Öffnen eines Dialogs zusammengesetzt, damit sie nicht am Stück im Bundle steht.

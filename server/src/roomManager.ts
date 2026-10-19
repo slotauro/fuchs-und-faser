@@ -1,7 +1,6 @@
 import { randomBytes, randomInt } from 'node:crypto';
 import {
   ANIMAL_IDS,
-  MAPS,
   MAX_PLAYERS,
   MIN_PLAYERS,
   ROOM_CODE_LENGTH,
@@ -144,7 +143,8 @@ export class RoomManager {
     const room: Room = {
       code: this.newCode(),
       hostId: player.id,
-      mapId: MAPS[MAPS.length - 1].id,
+      // Die kleine Tierstadt ist als Einstieg ins gemeinsame Bauen gedacht
+      mapId: 'tierstadt',
       phase: 'lobby',
       players: [player],
       game: null,

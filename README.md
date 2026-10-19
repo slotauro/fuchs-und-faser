@@ -33,7 +33,7 @@ Vor dem ersten E2E-Lauf einmalig: `npx playwright install chromium`.
 1. Dein Tier steht als Figur am Netzverteiler. Mit den **Pfeiltasten** läuft es los und legt hinter sich die Leitung. Alternativ Felder anklicken oder ziehen.
 2. Weiterlaufen, bis die Route auf einem gelben Hausanschluss endet. Ein Schritt zurück nimmt das letzte Feld wieder weg.
 3. **Route bauen** (oder `B`/`Enter`). Ungültige Routen werden mit Grund und markierter Stelle abgelehnt.
-4. Optional vorher die Fähigkeit des Tiers einsetzen (`F`).
+4. Optional die Fähigkeit des Tiers einsetzen (`F`): Maulwurf und Biber direkt vor Wurzeln bzw. Wasser, der Fuchs jederzeit; beim Dachs wirkt sie automatisch.
 
 Nach dem Bau bleibt die Figur am Hausanschluss stehen und kann über gebaute Leitungen zu einem Abzweig laufen. Mitspieler sieht man als Figur am Ende ihrer geplanten Route.
 
@@ -69,4 +69,4 @@ Client und Server rufen denselben Reducer `applyAction` aus `shared/src/gameRedu
 - Touch funktioniert (Tippen und Ziehen), ist aber nicht gezielt optimiert.
 - Kein Sound, keine Ranglisten, keine Konten (bewusst nicht im MVP).
 - Das Client-Bundle ist wegen Phaser etwa 1,6 MB groß (390 kB gzip). Alle Grafiken sind prozedural (Canvas/SVG aus Code), es werden keine Bilddateien geladen. Details: `docs/assets.md`.
-- Hosting: Jeder Node-Host mit WebSocket-Unterstützung (z. B. Render, Fly.io) genügt: `npm install && npm run build`, Startbefehl `npm start`. Ein Deployment ist noch nicht eingerichtet.
+- Hosting: Jeder Node-Host mit WebSocket-Unterstützung genügt: `npm install && npm run build`, Startbefehl `npm start`. Für Render liegt ein Blueprint in `render.yaml` (kostenloser Tarif, eine Instanz). Im Render-Dashboard „New → Blueprint“ wählen und dieses Repo verbinden. Der kostenlose Dienst schläft nach etwa 15 Minuten ohne Besucher ein, der erste Aufruf danach dauert bis zu einer Minute.

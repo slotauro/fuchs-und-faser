@@ -17,7 +17,7 @@ Größen in Weltpixeln. Eine Kachel hat 96 px (`TILE`), der Randbereich ist 96 p
 | --- | --- | --- | --- |
 | `terrain-<mapId>-<0/1>` | `art/terrain.ts` → `renderTerrain` | Canvas, (Breite × 96 + 192) × (Höhe × 96 + 192) | je Karte; 1 = verborgene Leerrohre aufgedeckt |
 | Legende | `art/terrain.ts` → `renderTileSwatch` | Canvas 30 × 30 (2× Pixeldichte) | je Kacheltyp |
-| `animal-<id>` | `ui/animalArt.ts` → `animalDataUrl` | SVG 128 × 128 | Fuchs, Maulwurf, Biber, Dachs |
+| `animal-<id>-<view>-<pose>` | `ui/animalArt.ts` → `animalDataUrl(id, view, pose)` | SVG 128 × 128 | Fuchs, Maulwurf, Biber, Dachs; je Ansicht `front`/`side`/`back` (Seite blickt nach rechts, nach links gespiegelt) und Pose `stand`/`stepA`/`stepB`, zusammen 36 Texturen |
 | Tierporträt (UI) | `ui/animalArt.ts` → `animalSvg(id, label, 'portrait')` | Inline-SVG, Ausschnitt Kopf | 4 Tiere |
 | `house-<n>` | `art/svgAssets.ts` → `houseSvg` | SVG, Grundfläche × 100 px + 30 % Dachüberstand | Cottage, Villa, Bäckerei (Markise, Brezelschild), Schule (Uhr, Glockenturm); Tür liegt gegenüber dem Anschluss |
 | `tree-0/1/2` | `treeSvg` | SVG 110–120 × 130–145 | Apfelbaum, Tanne, Laubbaum |
@@ -27,15 +27,19 @@ Größen in Weltpixeln. Eine Kachel hat 96 px (`TILE`), der Randbereich ist 96 p
 | `shaft` | `shaftSvg` | SVG 40 × 40 | Kabelschacht-Deckel |
 | `socket` / `socket-on` | `socketSvg` | SVG 100 × 100 | Hausanschluss offen (gelb) / angeschlossen (grün mit Haken) |
 | `badge-<id>` | `abilityBadgeSvg` | SVG 46 × 46 | Lupe, Schaufel, Planke, Spitzhacke |
+| `bridge` | `bridgeSvg` | SVG 100 × 100 | ein Kachelstück der Biberbrücke für waagerechte Routen; senkrecht um 90° gedreht, links und rechts offen |
+| `molehill` | `molehillSvg` | SVG 60 × 44 | Wandernder Erdbuckel beim Graben (verkleinert) |
 | `fx-dirt`, `fx-star` | `layers/FigureLayer.ts` | Phaser-Graphics-Textur 16 bzw. 32 px | Partikel für Graben und Anschluss |
+| `fx-drop`, `fx-shard` | `layers/AbilityLayer.ts` | Phaser-Graphics-Textur 16 px | Wassertropfen (Biber) und Gesteinssplitter (Dachs) |
 
 ## Zeichenebenen (`client/src/game/layers/`)
 
 | Ebene | Inhalt |
 | --- | --- |
 | `TerrainLayer` | Boden-Textur, Häuser, Verteiler, Hausanschlüsse, Randdekoration, Schilder |
+| `AbilityLayer` | Spuren der Bau-Fähigkeiten (Biberbrücke unter der Leitung, Maulwurfsgraben unter der Leitung, Schotterrinne mit Rissen im Fels), dieselben Spuren leicht durchscheinend als Vorschau der eigenen Planung, die Bauanimationen und die Suchwelle der Spürnase |
 | `FiberLayer` | gebaute Leitung (Schein, Kontur, Orange, Glanz), Kupplungen, Schächte, Bauanimation, Lichtimpuls |
 | `PlanLayer` | dezentes Raster, Vorschau (gestrichelt, transparent), mögliche Felder, Warnsymbol, Pfotenspur, Hover |
-| `FigureLayer` | Tierfiguren mit Idle, Hüpfen, Graben, Jubeln, Fähigkeits-Aura und -Abzeichen |
+| `FigureLayer` | Tierfiguren mit Laufrichtung (Front-, Seiten-, Rückansicht), Schritt-Posen, Idle, Hüpfen, Graben, Jubeln, Fähigkeits-Aura und -Abzeichen |
 
 Ein neues Asset: SVG-Funktion in `art/svgAssets.ts` ergänzen, in `worldAssets()` eintragen und in der passenden Ebene per Schlüssel verwenden.
