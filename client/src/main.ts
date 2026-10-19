@@ -48,6 +48,7 @@ function startSolo(mapId: string, animal: AnimalId): void {
   current = mountGameScreen(controller, {
     settings,
     onLeave: menu,
+    onSwitchAnimal: (other) => startSolo(mapId, other),
     resultActions: [
       ...(next ? [{ label: `Nächste Karte: ${next.name}`, primary: true, run: () => startSolo(next.id, animal) }] : []),
       { label: 'Nochmal', primary: !next, run: () => startSolo(mapId, animal) },

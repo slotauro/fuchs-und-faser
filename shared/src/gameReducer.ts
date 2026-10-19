@@ -1,4 +1,4 @@
-import { ANIMALS, findPlayer, routeAbility } from './abilitySystem';
+import { findPlayer, routeAbility } from './abilitySystem';
 import { tileCost } from './costCalculator';
 import { getMap } from './maps';
 import { cheapestRoutes } from './pathfinder';
@@ -105,17 +105,8 @@ export function applyAction(state: GameState, action: GameAction, now: number): 
       if (!Array.isArray(action.cells) || action.cells.length > map.width * map.height) {
         return reject('INVALID_ACTION', 'Ungültige Route.');
       }
-      // Die passive Fähigkeit (Dachs) wirkt ohne Aktivierung; ein mitgeschicktes `useAbility` ist dann bedeutungslos
-      if (action.useAbility && ANIMALS[player.animal].kind !== 'passive') {
-        if (ANIMALS[player.animal].kind !== 'route') {
-          return reject('NOT_ALLOWED', `${ANIMALS[player.animal].name} hat keine Bau-Fähigkeit.`);
-        }
-        if (player.abilityUsed) {
-          return reject('ABILITY_USED', `${ANIMALS[player.animal].abilityName} wurde bereits eingesetzt.`);
-        }
-      }
       const analysis = analyzeRoute(map, state, action.cells, {
-        activeAbility: routeAbility(player, action.useAbility),
+        activeAbility: routeAbility(player),
         spentAbility: player.abilityUsed ? player.animal : null,
       });
       if (analysis.error) return { ok: false, error: analysis.error };

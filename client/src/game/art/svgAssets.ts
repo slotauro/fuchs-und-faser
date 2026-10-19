@@ -226,7 +226,7 @@ export function socketSvg(connected: boolean): string {
     ${symbol}`);
 }
 
-/** Abzeichen über der Figur, solange die Fähigkeit scharf geschaltet ist. */
+/** Abzeichen über der Figur, solange die geplante Route die Fähigkeit nutzt. */
 export function abilityBadgeSvg(animal: 'fox' | 'mole' | 'beaver' | 'badger'): string {
   const icons = {
     fox: `<circle cx="22" cy="22" r="8" fill="#bfe6ff" stroke="${O}" stroke-width="3"/><path d="M28 28 L36 36" stroke="${O}" stroke-width="5" stroke-linecap="round"/>`,

@@ -23,7 +23,7 @@ export interface LobbyState {
 
 /** Aktionen, die ein Client im Multiplayer vorschlagen darf (playerId setzt der Server). */
 export type ClientAction =
-  | { type: 'buildRoute'; actionId: string; cells: Cell[]; useAbility: boolean }
+  | { type: 'buildRoute'; actionId: string; cells: Cell[] }
   | { type: 'useScout'; actionId: string }
   | { type: 'forfeit'; actionId: string };
 

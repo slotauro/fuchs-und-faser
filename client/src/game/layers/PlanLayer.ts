@@ -37,6 +37,11 @@ export class PlanLayer {
   private tooltip: Phaser.GameObjects.Container;
   private tooltipText: Phaser.GameObjects.Text;
   private tooltipBg: Phaser.GameObjects.Graphics;
+  /** Sprechblase mit der Fehlermeldung direkt an der ersten ungültigen Kachel */
+  private bubble: Phaser.GameObjects.Container;
+  private bubbleText: Phaser.GameObjects.Text;
+  private bubbleBg: Phaser.GameObjects.Graphics;
+  private bubbleKey = '';
   private snapshot: PlanSnapshot | null = null;
   private peers: { pts: Pt[]; color: number }[] = [];
   private hint: Cell[] | null = null;
@@ -65,6 +70,18 @@ export class PlanLayer {
     });
     this.tooltipText.setOrigin(0.5);
     this.tooltip = scene.add.container(0, 0, [this.tooltipBg, this.tooltipText]).setDepth(DEPTH.hover).setVisible(false);
+    this.bubbleBg = scene.add.graphics();
+    this.bubbleText = scene.add.text(0, 0, '', {
+      fontFamily: '"Nunito Variable", Nunito, system-ui, sans-serif',
+      fontSize: '26px',
+      fontStyle: '800',
+      color: '#ffffff',
+      align: 'center',
+      wordWrap: { width: TILE * 4.2, useAdvancedWrap: true },
+      lineSpacing: 2,
+    });
+    this.bubbleText.setOrigin(0.5);
+    this.bubble = scene.add.container(0, 0, [this.bubbleBg, this.bubbleText]).setDepth(DEPTH.labels).setVisible(false);
   }
 
   private drawGrid(): void {
@@ -88,14 +105,18 @@ export class PlanLayer {
     }
     if (state.status !== 'playing') {
       this.snapshot = null;
+      this.showBubble(null, '');
       return;
     }
     const cells = this.planner.cells;
     let badIndex = Infinity;
+    let message = '';
     if (cells.length) {
       const error = this.planner.rejected ?? this.planner.analysis().error;
       badIndex = error?.cellIndex ?? Infinity;
+      message = error?.message ?? '';
     }
+    this.showBubble(cells[badIndex] ?? null, message);
     const anchor = anchorFor(this.map, cells, new Set(state.builtCells));
     const full = anchor ? [anchor, ...cells] : cells;
     const split = Math.min(cells.length, badIndex) + (anchor ? 1 : 0);
@@ -110,6 +131,50 @@ export class PlanLayer {
       // ungültiger Teil beginnt an der letzten gültigen Kachel, damit die Linie durchgeht
       badPts: split < full.length ? smoothPath(full.slice(Math.max(0, split - 1))) : [],
     };
+  }
+
+  /** Fehlermeldung als rote Sprechblase unter (in der letzten Zeile: über) der ungültigen Kachel. */
+  private showBubble(cell: Cell | null, message: string): void {
+    if (!cell || !message) {
+      this.bubbleKey = '';
+      this.bubble.setVisible(false);
+      return;
+    }
+    const key = `${cellKey(cell)}|${message}`;
+    if (key === this.bubbleKey) return;
+    const fresh = !this.bubble.visible || !this.bubbleKey.endsWith(`|${message}`);
+    this.bubbleKey = key;
+
+    this.bubbleText.setText(message);
+    const w = this.bubbleText.width + 32;
+    const h = this.bubbleText.height + 20;
+    const below = cell.y < this.map.height - 1;
+    const c = center(cell);
+    const x = Math.min(Math.max(c.x, w / 2 + 4), this.map.width * TILE - w / 2 - 4);
+    const tail = 14;
+    const y = below ? (cell.y + 1) * TILE + tail + h / 2 - 6 : cell.y * TILE - tail - h / 2 + 6;
+    // Spitze zeigt auf die Kachel, auch wenn die Blase am Rand verschoben ist
+    const tx = Math.min(Math.max(c.x - x, -w / 2 + 20), w / 2 - 20);
+    const ty = below ? -h / 2 - tail : h / 2 + tail;
+    const base = below ? -h / 2 + 1 : h / 2 - 1;
+
+    const g = this.bubbleBg.clear();
+    g.fillStyle(INK, 0.3).fillRoundedRect(-w / 2 + 2, -h / 2 + 5, w, h, 16);
+    g.fillStyle(CREAM, 1).fillRoundedRect(-w / 2 - 3, -h / 2 - 3, w + 6, h + 6, 18);
+    g.fillTriangle(tx - 15, base, tx + 15, base, tx, ty - (below ? 4 : -4));
+    g.fillStyle(BAD, 1).fillRoundedRect(-w / 2, -h / 2, w, h, 16);
+    g.fillTriangle(tx - 11, base, tx + 11, base, tx, ty);
+    this.bubble.setPosition(x, y).setVisible(true);
+
+    // neue Meldung kurz aufploppen lassen, beim Weiterlaufen mit gleicher Meldung ruhig bleiben
+    const scene = this.bubble.scene;
+    scene.tweens.killTweensOf(this.bubble);
+    if (fresh && !this.reduceMotion) {
+      this.bubble.setScale(0.7).setAlpha(0);
+      scene.tweens.add({ targets: this.bubble, scale: 1, alpha: 1, duration: 220, ease: 'Back.Out' });
+    } else {
+      this.bubble.setScale(1).setAlpha(1);
+    }
   }
 
   /** Pfotenspur nach dem Einsatz der Spürnase Abdruck für Abdruck einblenden. */

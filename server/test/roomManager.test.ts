@@ -82,7 +82,7 @@ describe('Spielzustand im Multiplayer', () => {
   it('Szenario D: Bauaktion wird an alle verteilt, Budget ist gemeinsam', () => {
     const { rooms, code, games } = startTwo();
     const before = rooms.gameOf(code)!.budget;
-    expect(rooms.action('s2', { type: 'buildRoute', actionId: 'a1', cells: B1, useAbility: false }).ok).toBe(true);
+    expect(rooms.action('s2', { type: 'buildRoute', actionId: 'a1', cells: B1 }).ok).toBe(true);
     const last = games.at(-1)!;
     expect(last.state.budget).toBe(before - 26);
     expect(last.state.routes[0].playerId).not.toBe(rooms.gameOf(code)!.players[0].id);
@@ -90,7 +90,7 @@ describe('Spielzustand im Multiplayer', () => {
 
   it('Szenario E: doppelte Nachrichten verbuchen Kosten nur einmal', () => {
     const { rooms, code, games } = startTwo();
-    const action = { type: 'buildRoute' as const, actionId: 'dup', cells: B1, useAbility: false };
+    const action = { type: 'buildRoute' as const, actionId: 'dup', cells: B1 };
     rooms.action('s2', action);
     const budget = rooms.gameOf(code)!.budget;
     const count = games.length;
@@ -107,7 +107,7 @@ describe('Spielzustand im Multiplayer', () => {
   it('ungültige Aktionen verändern den Zustand nicht', () => {
     const { rooms, code } = startTwo();
     const before = rooms.gameOf(code);
-    const r = rooms.action('s1', { type: 'buildRoute', actionId: 'bad', cells: route('5,5 6,5'), useAbility: false });
+    const r = rooms.action('s1', { type: 'buildRoute', actionId: 'bad', cells: route('5,5 6,5') });
     expect(r.ok).toBe(false);
     expect(rooms.gameOf(code)).toBe(before);
   });

@@ -33,7 +33,7 @@ Vor dem ersten E2E-Lauf einmalig: `npx playwright install chromium`.
 1. Dein Tier steht als Figur am Netzverteiler. Mit den **Pfeiltasten** läuft es los und legt hinter sich die Leitung. Alternativ Felder anklicken oder ziehen.
 2. Weiterlaufen, bis die Route auf einem gelben Hausanschluss endet. Ein Schritt zurück nimmt das letzte Feld wieder weg.
 3. **Route bauen** (oder `B`/`Enter`). Ungültige Routen werden mit Grund und markierter Stelle abgelehnt.
-4. Optional die Fähigkeit des Tiers einsetzen (`F`): Maulwurf und Biber direkt vor Wurzeln bzw. Wasser, der Fuchs jederzeit; beim Dachs wirkt sie automatisch.
+4. Die Fähigkeit des Tiers nutzen: Der Fuchs setzt seine Spürnase jederzeit mit `F` ein. Maulwurf, Biber und Dachs wirken automatisch, sobald die Route durch Wurzeln, über eine Querungsstelle bzw. über Felsen führt.
 
 Nach dem Bau bleibt die Figur am Hausanschluss stehen und kann über gebaute Leitungen zu einem Abzweig laufen. Mitspieler sieht man als Figur am Ende ihrer geplanten Route.
 

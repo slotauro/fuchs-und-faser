@@ -105,7 +105,7 @@ export interface GameState {
 }
 
 export type GameAction =
-  | { type: 'buildRoute'; actionId: string; playerId: string; cells: Cell[]; useAbility: boolean }
+  | { type: 'buildRoute'; actionId: string; playerId: string; cells: Cell[] }
   | { type: 'useScout'; actionId: string; playerId: string }
   | { type: 'tick' }
   | { type: 'pause' }

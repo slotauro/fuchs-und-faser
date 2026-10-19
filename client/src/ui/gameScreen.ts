@@ -13,6 +13,7 @@ import { Planner } from '../game/planner';
 import { renderTileSwatch } from '../game/art/terrain';
 import { distributorSvg, socketSvg, svgDataUrl } from '../game/art/svgAssets';
 import { animalSvg } from './animalArt';
+import { animalCards } from './menu';
 import { ICONS } from './icons';
 import { $, app, escapeHtml, hideOverlay, resetScroll, showOverlay, toast } from './dom';
 import type { Settings } from './settings';
@@ -23,6 +24,8 @@ export interface GameScreenOptions {
   resultActions: { label: string; primary?: boolean; run: () => void }[];
   onLeave: () => void;
   extraInfo?: string;
+  /** Nur Singleplayer: anderes Tier wählen, die Karte startet damit neu. */
+  onSwitchAnimal?: (animal: AnimalId) => void;
 }
 
 const LEGEND: TileType[] = [
@@ -35,12 +38,12 @@ const LOSS_TEXT: Record<string, string> = {
   forfeit: 'Der Auftrag wurde abgebrochen.',
 };
 
-/** Hindernis, vor dem Maulwurf und Biber ihre Fähigkeit einsetzen. */
-const OBSTACLE: Record<AnimalId, { name: string; dative: string }> = {
-  mole: { name: 'Wurzelzone', dative: 'einer Wurzelzone' },
-  beaver: { name: 'Querungsstelle', dative: 'einer Querungsstelle am Wasser' },
-  badger: { name: 'Felsen', dative: 'Felsen' },
-  fox: { name: '', dative: '' },
+/** Hindernis, auf dem die automatische Bau-Fähigkeit wirkt. */
+const OBSTACLE: Record<AnimalId, { at: string; over: string }> = {
+  mole: { at: 'in Wurzelzonen', over: 'durch eine Wurzelzone' },
+  beaver: { at: 'an Querungsstellen', over: 'über eine Querungsstelle' },
+  badger: { at: 'auf Felsen', over: 'über Felsen' },
+  fox: { at: '', over: '' },
 };
 
 const tiles = (n: number) => `${n} ${n === 1 ? 'Kachel' : 'Kacheln'}`;
@@ -109,6 +112,7 @@ export function mountGameScreen(controller: GameController, options: GameScreenO
             <p class="ability-name">${animal.abilityName}</p>
             <p class="muted small">${animal.abilityText}</p>
             <span class="chip" id="ability-status"></span>
+            ${options.onSwitchAnimal ? `<button class="btn small ghost switch-animal" id="btn-switch-animal" data-testid="switch-animal">${ICONS.swap}<span>Tier wechseln</span></button>` : ''}
           </div>
         </div>
         ${controller.getState().mode === 'coop' ? `<div class="panel"><h3>Team</h3><ul class="team" id="team"></ul>${options.extraInfo ?? ''}</div>` : ''}
@@ -167,37 +171,23 @@ export function mountGameScreen(controller: GameController, options: GameScreenO
     ($('#btn-undo') as HTMLButtonElement).disabled = !playing || planner.cells.length === 0;
     ($('#btn-clear') as HTMLButtonElement).disabled = !playing || planner.cells.length === 0;
 
-    // Maulwurf und Biber nur direkt vor ihrem Hindernis, der Dachs wirkt ganz ohne Knopf
-    const canArm = planner.canArm;
-    abilityBtn.disabled =
-      !playing ||
-      player.abilityUsed ||
-      state.pausedAt !== null ||
-      animal.kind === 'passive' ||
-      (animal.kind === 'route' && !planner.abilityArmed && !canArm);
-    abilityBtn.classList.toggle('armed', planner.abilityArmed);
-    abilityBtn.classList.toggle('ready', canArm && !planner.abilityArmed);
+    // Bau-Fähigkeiten (Maulwurf, Biber, Dachs) wirken automatisch, nur der Fuchs hat einen Knopf
+    const abilityPlanned = planner.cells.length > 0 && analysis.abilityApplied;
+    abilityBtn.disabled = !playing || player.abilityUsed || state.pausedAt !== null || animal.kind === 'passive';
     $('#ability-label').textContent = player.abilityUsed
       ? `${animal.abilityName} (verbraucht)`
       : animal.kind === 'instant'
         ? `${animal.abilityName} einsetzen`
-        : animal.kind === 'passive'
-          ? `${animal.abilityName} (automatisch)`
-          : planner.abilityArmed
-            ? `${animal.abilityName}: scharf ✓`
-            : `${animal.abilityName} scharf schalten`;
-    abilityBtn.setAttribute('aria-pressed', String(planner.abilityArmed));
+        : `${animal.abilityName} (automatisch)`;
     const status = $('#ability-status');
     status.textContent = player.abilityUsed
       ? 'Bereits eingesetzt'
-      : planner.abilityArmed
-        ? 'Scharf – wirkt in dieser Planung'
+      : abilityPlanned
+        ? 'Wirkt in dieser Planung'
         : animal.kind === 'passive'
-          ? 'Wirkt automatisch auf Felsen · 1× pro Runde'
-          : animal.kind === 'route'
-            ? `Direkt vor ${OBSTACLE[animal.id].dative} einsetzbar · 1× pro Runde`
-            : 'Verfügbar · 1× pro Runde';
-    status.className = `chip ${player.abilityUsed ? 'used' : planner.abilityArmed ? 'armed' : 'ok'}`;
+          ? `Wirkt automatisch ${OBSTACLE[animal.id].at} · 1× pro Runde`
+          : 'Verfügbar · 1× pro Runde';
+    status.className = `chip ${player.abilityUsed ? 'used' : abilityPlanned ? 'armed' : 'ok'}`;
 
     const info = $('#plan-info');
     const msg = $('[data-testid="plan-msg"]');
@@ -214,9 +204,7 @@ export function mountGameScreen(controller: GameController, options: GameScreenO
         ? 'Plane die nächste Route – sie kann an jeder gebauten Leitung abzweigen.'
         : 'Lauf mit den Pfeiltasten los (oder klicke auf ein Feld neben dem Netzverteiler) – dein Tier legt die Leitung.';
     } else if (error) {
-      msg.textContent = `⚠ ${error.message}${canArm && !planner.abilityArmed ? ` – Taste F: ${animal.abilityName}` : ''}`;
-    } else if (canArm && !planner.abilityArmed) {
-      msg.textContent = `${OBSTACLE[animal.id].name} voraus – drücke F für ${animal.abilityName}.`;
+      msg.textContent = `⚠ ${error.message}`;
     } else if (analysis.complete) {
       const b = map.buildings.find((x) => x.id === analysis.buildingId);
       msg.textContent = `✓ Route zu ${b?.name} kostet ${formatPoints(analysis.cost)} Punkte${analysis.abilityApplied ? ` (mit ${animal.abilityName})` : ''}. Jetzt bauen!`;
@@ -293,7 +281,7 @@ export function mountGameScreen(controller: GameController, options: GameScreenO
     if (building || planner.cells.length === 0) return;
     building = true;
     renderHud(controller.getState());
-    const result = await controller.buildRoute(planner.cells, planner.abilityArmed);
+    const result = await controller.buildRoute(planner.cells);
     building = false;
     if (result.ok) {
       planner.finishBuild();
@@ -310,10 +298,8 @@ export function mountGameScreen(controller: GameController, options: GameScreenO
       const result = await controller.useScout();
       if (result.ok) toast('Spürnase: Hinweis und verborgene Leerrohre sind sichtbar.', 'ok');
       else if (result.error) toast(result.error.message, 'error');
-    } else if (animal.kind === 'passive') {
-      toast(`${animal.abilityName} wirkt automatisch, sobald deine Route über Felsen führt.`);
-    } else if (!planner.setArmed(!planner.abilityArmed)) {
-      toast(`${animal.abilityName} geht nur direkt vor ${OBSTACLE[animal.id].dative}.`);
+    } else {
+      toast(`${animal.abilityName} wirkt automatisch, sobald deine Route ${OBSTACLE[animal.id].over} führt.`);
     }
   }
 
@@ -346,7 +332,37 @@ export function mountGameScreen(controller: GameController, options: GameScreenO
     };
   }
 
+  /** Tier mitten in der Runde wechseln (Singleplayer): Zeit anhalten, nach der Wahl startet die Karte neu. */
+  function switchAnimal(): void {
+    const onSwitch = options.onSwitchAnimal;
+    if (!onSwitch) return;
+    const playing = controller.getState().status === 'playing';
+    if (playing) controller.pause();
+    const close = () => {
+      hideOverlay();
+      if (playing) controller.resume();
+    };
+    const el = showOverlay(`
+      <h2>Tier wechseln</h2>
+      <p class="muted">${playing ? 'Die Zeit ist angehalten. Mit einem anderen Tier startet die Karte von vorn – gebaute Leitungen, Budget und Zeit werden zurückgesetzt.' : 'Mit einem anderen Tier startet die Karte von vorn.'}</p>
+      <div class="grid-cards switch-cards">${animalCards(animal.id)}</div>
+      <div class="row" style="margin-top:16px"><button class="btn" id="switch-cancel">Abbrechen</button></div>`);
+    el.querySelectorAll<HTMLElement>('[data-animal]').forEach((card) => {
+      card.onclick = () => {
+        const chosen = card.dataset.animal as AnimalId;
+        if (chosen === animal.id) close();
+        else {
+          hideOverlay();
+          onSwitch(chosen);
+        }
+      };
+    });
+    $('#switch-cancel', el).onclick = close;
+    el.querySelector<HTMLElement>('[aria-pressed="true"]')?.focus();
+  }
+
   buildBtn.onclick = () => void build();
+  document.getElementById('btn-switch-animal')?.addEventListener('click', switchAnimal);
   abilityBtn.onclick = () => void ability();
   $('#btn-undo').onclick = () => planner.undo();
   $('#btn-clear').onclick = () => planner.clear();

@@ -228,15 +228,6 @@ input.code { font-family: ui-monospace, Menlo, monospace; text-transform: upperc
 .ability-btn { padding-left: 8px; }
 .ability-ico { width: 30px; height: 30px; border-radius: 50%; background: var(--panel-2); display: grid; place-items: center; overflow: hidden; }
 .ability-ico svg { width: 30px; height: 30px; }
-.ability-btn.armed {
-  color: #fff; border-color: var(--ability-deep); background: var(--ability);
-  box-shadow: 0 2px 0 var(--ability-deep), 0 0 0 4px var(--ability-soft), 0 6px 18px var(--ability-soft);
-  animation: glow 1.4s ease-in-out infinite;
-}
-/* Maulwurf/Biber direkt vor ihrem Hindernis: Knopf lädt zum Einsetzen ein */
-.ability-btn.ready { border-color: var(--ability); color: var(--ability-deep); animation: glow 1.4s ease-in-out infinite; }
-.ability-btn.armed kbd { background: rgba(255, 255, 255, 0.2); border-color: rgba(255, 255, 255, 0.35); }
-@keyframes glow { 50% { box-shadow: 0 2px 0 var(--ability-deep), 0 0 0 7px var(--ability-soft), 0 6px 22px var(--ability-soft); } }
 .ability-fox { --ability: #ef7d2d; --ability-deep: #b9531a; --ability-soft: rgba(239, 125, 45, 0.28); }
 .ability-mole { --ability: #6f6488; --ability-deep: #4a405f; --ability-soft: rgba(111, 100, 136, 0.3); }
 .ability-beaver { --ability: #9a5f33; --ability-deep: #6e4122; --ability-soft: rgba(154, 95, 51, 0.3); }
@@ -267,6 +258,10 @@ input.code { font-family: ui-monospace, Menlo, monospace; text-transform: upperc
 .chip.ok { background: var(--ok-soft); color: var(--ok); }
 .chip.armed { background: var(--ability); color: #fff; }
 .chip.used { background: var(--line); color: var(--ink-soft); }
+.switch-animal { margin-top: 10px; }
+.switch-animal svg { width: 16px; height: 16px; }
+.switch-cards { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); margin-top: 12px; }
+.switch-cards .animal-card svg { width: 52px; height: 52px; }
 .legend { list-style: none; padding: 0 !important; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; font-size: 0.84rem; }
 .legend li { display: flex; align-items: center; gap: 7px; line-height: 1.15; }
 .legend li span { display: grid; font-weight: 700; }
