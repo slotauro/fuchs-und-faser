@@ -75,8 +75,8 @@ export class NetworkController implements GameController {
     return { ok: false, error: { code: 'NOT_ALLOWED', message: 'Keine Antwort vom Server – bitte erneut versuchen.' } };
   }
 
-  buildRoute(cells: Cell[], useAbility: boolean): Promise<ControllerResult> {
-    return this.send({ type: 'buildRoute', actionId: newActionId(), cells, useAbility });
+  buildRoute(cells: Cell[]): Promise<ControllerResult> {
+    return this.send({ type: 'buildRoute', actionId: newActionId(), cells });
   }
 
   useScout(): Promise<ControllerResult> {

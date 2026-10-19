@@ -7,7 +7,7 @@ export const map4: MapSource = {
     'Der Mühlbach teilt das Dorf. Drei Häuser warten – wer klug abzweigt, spart sich den langen Weg um das Wasser.',
   tips: [
     'Ohne Brücke führt der einzige Weg ans andere Ufer unten um den Bach herum.',
-    'Der Biber kann einmal pro Runde eine Brücke bauen – wähle eine der beiden Querungsstellen.',
+    'Der Biber baut automatisch eine Brücke – aber nur einmal pro Runde, wähle eine der beiden Querungsstellen.',
     'Zweige weitere Routen von gebauten Leitungen ab, statt jedes Mal am Verteiler zu beginnen.',
     'Der Fuchs wittert ein verborgenes Leerrohr am Bachufer.',
   ],

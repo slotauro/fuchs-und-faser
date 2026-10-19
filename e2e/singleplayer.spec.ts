@@ -27,13 +27,10 @@ test('Szenario B: ungültige Route wird abgelehnt, Budget bleibt unverändert', 
 
 test('Szenario C: Maulwurfstunnel wird genau einmal angewendet', async ({ page }) => {
   await startSolo(page, 'wurzelallee', 'mole');
-  // erst direkt vor der Wurzelzone lässt sich die Fähigkeit scharf schalten
+  // der Tunnel wirkt automatisch, sobald die Route durch die Wurzelzone führt
   await expect(page.getByTestId('ability')).toBeDisabled();
-  await planRoute(page, '2,4 3,4 4,4 5,4 6,4');
-  await expect(page.getByTestId('plan-msg')).toContainText('Wurzelzone voraus');
-  await page.getByTestId('ability').click();
-  await expect(page.getByTestId('ability')).toHaveAttribute('aria-pressed', 'true');
-  await planRoute(page, '7,4 8,4 9,4 10,4 11,4 12,4 13,4 14,4');
+  await expect(page.getByTestId('ability')).toContainText('automatisch');
+  await planRoute(page, '2,4 3,4 4,4 5,4 6,4 7,4 8,4 9,4 10,4 11,4 12,4 13,4 14,4');
   await expect(page.getByTestId('plan-msg')).toContainText('mit Maulwurfstunnel');
   await page.getByTestId('build').click();
   await expect(page.getByTestId('result')).toContainText('Alle Gebäude sind am Netz');
@@ -87,4 +84,18 @@ test('Pfeiltasten: das Tier läuft los und legt dabei die Leitung', async ({ pag
   await expect(result).toBeHidden();
   await page.keyboard.press('Escape');
   await expect(result).toContainText('Alle Gebäude sind am Netz');
+});
+
+test('Tier mitten in der Runde wechseln startet die Karte neu', async ({ page }) => {
+  await startSolo(page, 'muehlbach', 'fox');
+  await planRoute(page, '2,4 3,4 4,4 5,4 6,4 6,3 6,2 6,1 5,1 4,1 3,1');
+  await page.getByTestId('build').click();
+  await expect(page.getByTestId('connected')).toHaveText('1 / 3');
+  await page.getByTestId('switch-animal').click();
+  await expect(page.getByTestId('time')).toContainText('⏸');
+  await page.getByTestId('animal-beaver').click();
+  await expect(page.getByTestId('ability')).toContainText('Cleverer Übergang');
+  await expect(page.getByTestId('connected')).toHaveText('0 / 3');
+  await expect(page.getByTestId('budget')).toHaveText('46 / 46');
+  await expect(page.getByTestId('time')).toHaveText(/^(5:00|4:5\d)$/);
 });

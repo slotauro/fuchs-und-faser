@@ -7,15 +7,15 @@ export const map2: MapSource = {
     'Alte Bäume und ein Bach trennen das Haus vom Netz. Jedes Tier findet hier seinen eigenen Weg.',
   tips: [
     'Wurzelzonen und Wasser sind ohne Fähigkeit nicht bebaubar.',
-    'Maulwurf und Biber setzen ihre Fähigkeit direkt vor Wurzeln bzw. Wasser ein, der Dachs braucht keine Aktivierung.',
+    'Maulwurf, Biber und Dachs brauchen keine Aktivierung: Ihre Fähigkeit wirkt automatisch in der ersten passenden Route.',
     'Der Fuchs ahnt: Unter der Wiese im Süden liegt vielleicht ein altes Leerrohr.',
   ],
   grid: [
     '.......~~.......',
     '.......~~.......',
-    '.......~~.....BB',
+    '.......~~.......',
     '.......bb.....BB',
-    '.D.....%%.....A.',
+    '.D.....%%.....AB',
     '.......%%.......',
     '.......^^.......',
     '.......%%.......',

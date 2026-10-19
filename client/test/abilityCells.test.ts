@@ -10,10 +10,10 @@ const route = (s: string): Cell[] =>
   });
 
 /** Baut auf der Wurzelallee eine Route mit dem gegebenen Tier und liefert die Fähigkeits-Spuren. */
-function build(animal: AnimalId, cells: Cell[], useAbility = true) {
+function build(animal: AnimalId, cells: Cell[]) {
   const map = getMap('wurzelallee');
   const state = createGame(map, 'solo', [{ id: 'p1', name: 'Tester', animal }], 0);
-  const r = applyAction(state, { type: 'buildRoute', actionId: 'a1', playerId: 'p1', cells, useAbility }, 1000);
+  const r = applyAction(state, { type: 'buildRoute', actionId: 'a1', playerId: 'p1', cells }, 1000);
   if (!r.ok) throw new Error(r.error.message);
   return abilityTraces(map, r.state);
 }

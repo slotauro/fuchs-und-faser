@@ -48,7 +48,7 @@ export function cleanAction(v: unknown): ClientAction | null {
     case 'buildRoute': {
       const cells = cleanCells(raw.cells);
       if (!cells) return null;
-      return { type: 'buildRoute', actionId, cells, useAbility: raw.useAbility === true };
+      return { type: 'buildRoute', actionId, cells };
     }
     case 'useScout':
       return { type: 'useScout', actionId };

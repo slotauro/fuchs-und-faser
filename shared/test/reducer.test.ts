@@ -2,12 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { applyAction, createGame, getMap, type GameState } from '../src';
 import { MAP1_DETOUR, MAP2_TUNNEL, route, solo } from './helpers';
 
-const build = (state: GameState, cells = MAP1_DETOUR, extra: { useAbility?: boolean; actionId?: string } = {}) =>
-  applyAction(
-    state,
-    { type: 'buildRoute', actionId: extra.actionId ?? 'a1', playerId: 'p1', cells, useAbility: !!extra.useAbility },
-    1000,
-  );
+const build = (state: GameState, cells = MAP1_DETOUR, extra: { actionId?: string } = {}) =>
+  applyAction(state, { type: 'buildRoute', actionId: extra.actionId ?? 'a1', playerId: 'p1', cells }, 1000);
 
 describe('Szenario A – Singleplayer', () => {
   it('schließt das Haus an, reduziert das Budget und zeigt ein Ergebnis', () => {
@@ -36,9 +32,9 @@ describe('Szenario B – ungültige Route', () => {
 });
 
 describe('Szenario C – Spezialfähigkeit', () => {
-  it('der Maulwurf unterquert die Wurzelzone genau einmal', () => {
+  it('der Maulwurf unterquert die Wurzelzone automatisch genau einmal', () => {
     const { state } = solo('wurzelallee', 'mole');
-    const r = build(state, MAP2_TUNNEL, { useAbility: true });
+    const r = build(state, MAP2_TUNNEL);
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.state.players[0].abilityUsed).toBe(true);
@@ -46,23 +42,23 @@ describe('Szenario C – Spezialfähigkeit', () => {
     expect(r.events[0]).toMatchObject({ type: 'abilityUsed', animal: 'mole' });
   });
 
-  it('ohne Fähigkeit ist die Wurzelzone gesperrt', () => {
-    const { state } = solo('wurzelallee', 'mole');
+  it('ohne Maulwurf ist die Wurzelzone gesperrt', () => {
+    const { state } = solo('wurzelallee', 'beaver');
     expect(build(state, MAP2_TUNNEL).ok).toBe(false);
   });
 
   it('ein abgelehnter Bau verbraucht die Fähigkeit nicht', () => {
     const { state } = solo('wurzelallee', 'mole');
-    const r = build({ ...state, budget: 4 }, MAP2_TUNNEL, { useAbility: true });
+    const r = build({ ...state, budget: 4 }, MAP2_TUNNEL);
     expect(r.ok).toBe(false);
     expect(state.players[0].abilityUsed).toBe(false);
   });
 
-  it('eine verbrauchte Fähigkeit kann nicht erneut genutzt werden', () => {
+  it('eine verbrauchte Fähigkeit wirkt nicht erneut', () => {
     const { state } = solo('wurzelallee', 'mole');
     const used = { ...state, players: state.players.map((p) => ({ ...p, abilityUsed: true })) };
-    const r = build(used, MAP2_TUNNEL, { useAbility: true });
-    expect(!r.ok && r.error.code).toBe('ABILITY_USED');
+    const r = build(used, MAP2_TUNNEL);
+    expect(!r.ok && r.error.code).toBe('BLOCKED');
   });
 
   it('der Dachs macht Felsen günstiger – ganz ohne Aktivierung', () => {
@@ -76,16 +72,16 @@ describe('Szenario C – Spezialfähigkeit', () => {
   it('die passive Fähigkeit des Dachses wirkt nur einmal und wird nicht abgelehnt', () => {
     const { state } = solo('erstes-haus', 'badger');
     const used = { ...state, players: state.players.map((p) => ({ ...p, abilityUsed: true })) };
-    const r = build(used, route('2,3 2,4 3,4 4,4 5,4 6,4 7,4 8,4 9,4 10,4 11,4'), { useAbility: true });
+    const r = build(used, route('2,3 2,4 3,4 4,4 5,4 6,4 7,4 8,4 9,4 10,4 11,4'));
     expect(r.ok && r.state.spent).toBeGreaterThan(24);
   });
 
-  it('der Biber überbrückt die Querungsstelle', () => {
-    const { state } = solo('wurzelallee', 'beaver');
+  it('der Biber überbrückt die Querungsstelle automatisch', () => {
     const cells = route('1,3 2,3 3,3 4,3 5,3 6,3 7,3 8,3 9,3 10,3 11,3 12,3 13,3 13,4 14,4');
-    expect(build(state, cells).ok).toBe(false);
-    const r = build(state, cells, { useAbility: true });
+    expect(build(solo('wurzelallee', 'fox').state, cells).ok).toBe(false);
+    const r = build(solo('wurzelallee', 'beaver').state, cells);
     expect(r.ok && r.state.spent).toBe(34);
+    expect(r.ok && r.events[0]).toMatchObject({ type: 'abilityUsed', animal: 'beaver' });
   });
 
   it('erklärt nach verbrauchtem Übergang, warum die Querungsstelle gesperrt ist', () => {
@@ -95,8 +91,8 @@ describe('Szenario C – Spezialfähigkeit', () => {
     const r = build(used, cells);
     expect(!r.ok && r.error.code).toBe('BLOCKED');
     expect(!r.ok && r.error.message).toContain('schon verbraucht');
-    const fresh = build(state, cells);
-    expect(!fresh.ok && fresh.error.message).toContain('nur der Biber');
+    const fox = build(solo('wurzelallee', 'fox').state, cells);
+    expect(!fox.ok && fox.error.message).toContain('nur der Biber');
   });
 
   it('der Fuchs deckt Leerrohre auf und zeigt einen Hinweis', () => {

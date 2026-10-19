@@ -41,7 +41,7 @@ describe('Socket.IO-Server', () => {
     expect(sa.state.budget).toBe(sb.state.budget);
 
     const cells = '1,6 1,5 2,5 2,4 2,3 3,3 4,3 5,3 5,2 5,1'.split(' ').map((p) => ({ x: +p.split(',')[0], y: +p.split(',')[1] }));
-    const action = { type: 'buildRoute' as const, actionId: 'same-id', cells, useAbility: false };
+    const action = { type: 'buildRoute' as const, actionId: 'same-id', cells };
     const update = Promise.all([nextState(a), nextState(b)]);
     const [r1, r2] = await Promise.all([
       call<Ack<{ duplicate?: boolean }>>((ack) => b.emit('game:action', action, ack)),

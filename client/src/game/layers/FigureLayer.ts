@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { ANIMALS, type AnimalId, type Cell, type GameState, type MapDef } from '@fuf/shared';
+import { type AnimalId, type Cell, type GameState, type MapDef } from '@fuf/shared';
 import { ANIMAL_COLORS, type AnimalPose } from '../../ui/animalArt';
 import type { Planner } from '../planner';
 import { DEPTH, TILE, center } from './constants';
@@ -68,6 +68,7 @@ export class FigureLayer {
 
   refresh(state: GameState, peerPlans: Map<string, Cell[]>): void {
     const me = this.localPlayerId;
+    const abilityPlanned = this.planner.cells.length > 0 && this.planner.analysis().abilityApplied;
     const positions = state.players.map((p) => {
       const plan = peerPlans.get(p.id);
       const cell = p.id === me ? this.planner.figure : (plan?.[plan.length - 1] ?? this.planner.start);
@@ -91,9 +92,8 @@ export class FigureLayer {
       } else if (figure.cell.x !== cell.x || figure.cell.y !== cell.y || figure.offset !== offset) {
         this.move(figure, cell, offset);
       }
-      // Aura und Abzeichen, solange die eigene Bau-Fähigkeit scharf ist
-      const armed =
-        player.id === me && this.planner.abilityArmed && !player.abilityUsed && ANIMALS[player.animal].kind === 'route';
+      // Aura und Abzeichen, solange die eigene Planung die Bau-Fähigkeit nutzt
+      const armed = player.id === me && abilityPlanned;
       figure.aura.setVisible(armed);
       figure.badge.setVisible(armed);
     }

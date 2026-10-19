@@ -32,7 +32,7 @@ export interface GameController {
   now(): number;
   subscribe(listener: StateListener): () => void;
   onPeerPlan(listener: PlanListener): () => void;
-  buildRoute(cells: Cell[], useAbility: boolean): Promise<ControllerResult>;
+  buildRoute(cells: Cell[]): Promise<ControllerResult>;
   useScout(): Promise<ControllerResult>;
   forfeit(): Promise<ControllerResult>;
   pause(): void;
@@ -89,8 +89,8 @@ export class LocalController implements GameController {
     return { ok: true };
   }
 
-  async buildRoute(cells: Cell[], useAbility: boolean): Promise<ControllerResult> {
-    return this.dispatch({ type: 'buildRoute', actionId: newActionId(), playerId: this.localPlayerId, cells, useAbility });
+  async buildRoute(cells: Cell[]): Promise<ControllerResult> {
+    return this.dispatch({ type: 'buildRoute', actionId: newActionId(), playerId: this.localPlayerId, cells });
   }
 
   async useScout(): Promise<ControllerResult> {
