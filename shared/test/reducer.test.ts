@@ -88,6 +88,17 @@ describe('Szenario C – Spezialfähigkeit', () => {
     expect(r.ok && r.state.spent).toBe(34);
   });
 
+  it('erklärt nach verbrauchtem Übergang, warum die Querungsstelle gesperrt ist', () => {
+    const { state } = solo('wurzelallee', 'beaver');
+    const cells = route('1,3 2,3 3,3 4,3 5,3 6,3 7,3 8,3 9,3 10,3 11,3 12,3 13,3 13,4 14,4');
+    const used = { ...state, players: state.players.map((p) => ({ ...p, abilityUsed: true })) };
+    const r = build(used, cells);
+    expect(!r.ok && r.error.code).toBe('BLOCKED');
+    expect(!r.ok && r.error.message).toContain('schon verbraucht');
+    const fresh = build(state, cells);
+    expect(!fresh.ok && fresh.error.message).toContain('nur der Biber');
+  });
+
   it('der Fuchs deckt Leerrohre auf und zeigt einen Hinweis', () => {
     const { state } = solo('wurzelallee', 'fox');
     const r = applyAction(state, { type: 'useScout', actionId: 's1', playerId: 'p1' }, 10);

@@ -1,7 +1,7 @@
-import { MOLE_MAX_TUNNEL } from './abilitySystem';
+import { ANIMALS, MOLE_MAX_TUNNEL, abilityTileCost } from './abilitySystem';
 import { tileCost } from './costCalculator';
 import { TILE_INFO, cellKey, formatPoints, isAdjacent } from './tiles';
-import type { AnimalId, Cell, GameError, GameState, HalfPoints, MapDef } from './types';
+import type { AnimalId, Cell, GameError, GameState, HalfPoints, MapDef, TileType } from './types';
 
 export interface RouteAnalysis {
   /** Summe der bis zum ersten Fehler berechenbaren Kosten. */
@@ -19,6 +19,16 @@ export interface AnalyzeOptions {
   activeAbility?: AnimalId | null;
   /** Unvollständige Routen (noch ohne Ziel) nicht als Fehler werten. */
   partial?: boolean;
+  /** Tier, dessen Bau-Fähigkeit in dieser Runde schon verbraucht ist – nur für eine passendere Fehlermeldung. */
+  spentAbility?: AnimalId | null;
+}
+
+/** Erklärt, warum eine Kachel gesperrt ist – auch dann, wenn die eigene Fähigkeit hier nicht mehr wirkt. */
+function blockedMessage(raw: TileType, spentAbility: AnimalId | null): string {
+  if (spentAbility && abilityTileCost(spentAbility, raw) !== undefined) {
+    return `${TILE_INFO[raw].label} – die Fähigkeit „${ANIMALS[spentAbility].abilityName}“ ist in dieser Runde schon verbraucht, hier hilft nur ein Umweg`;
+  }
+  return TILE_INFO[raw].blockedMessage ?? 'Hier kann nicht gebaut werden.';
 }
 
 export function networkKeys(map: MapDef, state: GameState): Set<string> {
@@ -105,7 +115,7 @@ export function analyzeRoute(
     const { cost, viaAbility } = tileCost(raw, state.scoutRevealed, activeAbility);
     if (cost === null) {
       result.perCell.push(null);
-      return fail('BLOCKED', TILE_INFO[raw].blockedMessage ?? 'Hier kann nicht gebaut werden.', i);
+      return fail('BLOCKED', blockedMessage(raw, options.spentAbility ?? null), i);
     }
 
     if (raw === 'roots' && viaAbility) {
